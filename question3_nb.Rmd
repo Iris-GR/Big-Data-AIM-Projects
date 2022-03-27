@@ -1,0 +1,87 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+```{r}
+plot(cars)
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+
+# Data loading
+```{r}
+
+library(readr)
+library(tibble)
+library(dplyr)
+library(purrr)
+
+names <- c("id_number", "diagnosis", "radius_mean",
+          "texture_mean", "perimeter_mean", "area_mean",
+          "smoothness_mean", "compactness_mean",
+          "concavity_mean","concave_points_mean",
+          "symmetry_mean", "fractal_dimension_mean",
+          "radius_se", "texture_se", "perimeter_se",
+          "area_se", "smoothness_se", "compactness_se",
+          "concavity_se", "concave_points_se",
+          "symmetry_se", "fractal_dimension_se",
+          "radius_worst", "texture_worst",
+          "perimeter_worst", "area_worst",
+          "smoothness_worst", "compactness_worst",
+          "concavity_worst", "concave_points_worst",
+          "symmetry_worst", "fractal_dimension_worst")
+
+uci_bc_data <- read_delim(
+  "https://archive.ics.uci.edu/ml/machine-learning-databases/breast-cancer-wisconsin/wdbc.data",
+  delim = ",",
+  col_names = names,
+  col_types = cols(
+    .default = col_number(),
+    id_number = col_integer(),
+    diagnosis = col_factor()
+  ))
+
+y <- uci_bc_data %>% 
+  mutate(diagnosis = as.factor(case_when(diagnosis == "B" ~ 0, diagnosis == "M" ~ 1))) %>%
+  select(diagnosis) %>%
+  as_vector() %>%
+  unname()
+X <- uci_bc_data %>% 
+  select(-id_number, -diagnosis) %>%
+  as.matrix()
+
+```
+
+
+
+```{r}
+uci_bc_data
+```
+
+```{r}
+library(ggplot2)
+ggplot(diamonds, aes(x = diagnosis)) +
+  geom_bar()
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
