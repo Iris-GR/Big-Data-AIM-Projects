@@ -84,6 +84,22 @@ mean(R_te)
 sd(R_te)
 
 
+#Another (more flexible) implementation of training the model
+#Can add folding to this piece of code
+model <- train(V3 ~ ., train_set,
+               method = "qda")
+
+predictions_QDA = data.frame(predict(model, test_set))
+predictions_QDA = cbind(test_set, predictions_QDA)
+
+#Percentage of correct predictions
+score = mean(predictions_QDA$predict.model..test_set. == predictions_QDA$V3)
+
+#Test error using 0-1 loss
+R_te = 1 - score
+
+
+
 # -------- PLOTTING DECISION BOUNDARY -----------------
 
 #plot decision boundary

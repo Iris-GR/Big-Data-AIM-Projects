@@ -65,4 +65,20 @@ corrplot(corr_matrix)
 
 #Q3:
 
+#Skapa 10 folds:
+ix_folds = createFolds(uci_bc_data, k = 10)
+model <- train(V3 ~ ., train_set,
+               method = "rf")
+
+
+# predictions_QDA = data.frame(predict(model, test_set))
+# predictions_QDA = cbind(test_set, predictions_QDA)
+# 
+# #Percentage of correct predictions
+# score = mean(predictions_QDA$predict.model..test_set. == predictions_QDA$V3)
+# 
+# #Test error using 0-1 loss
+# R_te = 1 - score
+
+
 #Prova random forest
