@@ -1,13 +1,14 @@
 # MVE441, Project 1, (Iris)
 
-# Load libraries
+#### Load libraries ####
 library(caret)
 library(MASS)
 library(rpart)
 library(readr)
 library(tibble)
-#library(dplyr)
-#library(purrr)
+library(dplyr)
+library(purrr)
+library(corrplot)
 #library(tidyverse)
 
 #### Question 1 ####
@@ -274,40 +275,17 @@ sprintf('The mean confusion matrix of %i simulated QDA datasets predicted by CAR
 Mean_CMs_cart_qda
 std_cart_qda
 
+
 #### Load and get overview of breast cancer dataset ####
 # 1. Investigate if the class labels are balanced or imbalanced.
 # 2. Investigate the features
-#   a) Are they numerical or categorical? (lapply(dataset name, class))
+#   a) Are they numerical or categorical? 
 #   b) Do they have highly varying scales? Should data be scaled/normalized/
 #      centred before being used in a classification method? (More on this in
 #      lecture 5)
 #   c) How does the correlation matrix between the features look like? Are there 
 #      highly correlated features? Are there plausible reasons for the 
 #      correlations?
-
-#### Question 3 #### 
-# 1. Choose a classification methods (classifier) and test the effect of 
-#    different classification metrics (such as accuracy, specificity, the F1 
-#    score, etc.). What I mean by this is the following
-#    - Split your data into a bunch of folds (do this without stratification for 
-#      now)
-#    - For each fold F:
-#       - Train a model on the remaining training folds using the models 
-#         standard mode of training (e.g. optimisation of a likelihood in the 
-#         case of QDA, splitting on the Gini score in CART or Random Forest)
-#       - Compute classification metrics on the test fold F.
-#   - Report the average performance across folds
-# 
-# 2. Which classification metric(s?) is/are most suitable for our goal here? 
-#    Explain why! (Could maybe be specificity, sensitivity, ROC, AUC)
-#
-# 3. Choose one additional classification method that is substantially different
-#    (i.e. QDA and Random Forest, or logistic regression and CART. Not QDA and 
-#    LDA, or logistic regression and LDA, they are too similar in their 
-#    assumptions) and compare the two methods using the best classification 
-#    metric(s) you determined in Step 2.
-# 
-# 4. Does using stratified cross-validation change/improve your results?
 
 # Factor names
 names <- c("id_number", "diagnosis", "radius_mean",
@@ -343,10 +321,138 @@ y <- uci_bc_data %>%
   as_vector() %>%
   unname()
 
-# Define the predictors
+# Define the predictors (remove id and response variable y)
 X <- uci_bc_data %>% 
   select(-id_number, -diagnosis) %>%
   as.matrix()
+
+# Total number of observations
+tot.nr.obs <- length(y)
+tot.nr.obs
+
+# Number observations for each class
+table(y)
+nr.class <- table(y)
+
+# Proportion of observations in clas 1 (malignant tumor)
+nr.class[2]/tot.nr.obs
+
+# Are the features (predictors) numerical or categorical? They are numerical
+lapply(X[1,], class)
+
+# Spread
+boxplot(X)
+sprintf('The features area_mean and are_worst have much larger scale than the others')
+sprintf('Probably be scaled/normalized/centered')
+
+# Near zero variance predictors/freatures. Appears to be okay.
+nzv <- nearZeroVar(X, saveMetrics= TRUE)
+
+# Find linear combinations among features. Appears okay.
+comboInfo <- findLinearCombos(X)
+comboInfo
+
+# Correlation matrix for features (X matrix). Yes, some appear highly positively 
+# correlated (radii and area for ex.)
+corr.x <- cor(X)
+corrplot(corr.x)
+
+# Other method of finding correlations
+highCorr <- sum(abs(corr.x[upper.tri(corr.x)]) > .9)
+#highCorr <- sum(abs(corr.x[upper.tri(corr.x)]) > .99)
+#highCorr <- sum(abs(corr.x[upper.tri(corr.x)]) > .999)
+summary(corr.x[upper.tri(corr.x)])
+
+# Filter out features with high correlation
+X_cor_high <- findCorrelation(corr.x, cutoff = .75)
+X_high_cor_filtered <- X[,-X_cor_high]
+cor_X_high_cor_filtered <- cor(X_high_cor_filtered)
+summary(cor_X_high_cor_filtered[upper.tri(cor_X_high_cor_filtered)])
+
+#### Question 3 #### 
+# 1. Choose a classification methods (classifier) and test the effect of 
+#    different classification metrics (such as accuracy, specificity, the F1 
+#    score, etc.). What I mean by this is the following
+#    - Split your data into a bunch of folds (do this without stratification for 
+#      now)
+#    - For each fold F:
+#       - Train a model on the remaining training folds using the models 
+#         standard mode of training (e.g. optimisation of a likelihood in the 
+#         case of QDA, splitting on the Gini score in CART or Random Forest)
+#       - Compute classification metrics on the test fold F.
+#   - Report the average performance across folds
+# 
+# 2. Which classification metric(s?) is/are most suitable for our goal here? 
+#    Explain why! (Could maybe be specificity, sensitivity, ROC, AUC)
+#
+# 3. Choose one additional classification method that is substantially different
+#    (i.e. QDA and Random Forest, or logistic regression and CART. Not QDA and 
+#    LDA, or logistic regression and LDA, they are too similar in their 
+#    assumptions) and compare the two methods using the best classification 
+#    metric(s) you determined in Step 2.
+# 
+# 4. Does using stratified cross-validation change/improve your results?
+
+# Create dataset starting fresh from the uci_bc_data. Change diagnosis to 0-1
+# factor and remove Id number
+data <- mutate(uci_bc_data, diagnosis = as.factor(case_when(diagnosis == "B" ~ 0, diagnosis == "M" ~ 1)))
+data <- data[,-1]
+
+# Dataset with 0-1 converted diagnosis, without id number, and features with 
+# high correlation are removed (X_high_cor_filtered - calculated in previous 
+# section). Very ugly, need to improve...
+# data_cor_filtered <- data %>% select(-(c(colnames(X_high_cor_filtered)))) 
+
+
+## Split into training and testing data (random sampling WITHOUT stratification)
+set.seed(122)
+in_training <- sample(1:dim(data)[1],0.75*dim(data)[1], replace = FALSE)
+data_train <- data[ in_training,]
+data_test  <- data[-in_training,]
+
+
+# Specify the type of resampling 
+fitControl <- trainControl(method = "cv",
+                           number = 10)
+
+#QDA----------------------------------------------------------------------------
+# Fit the training data for QDA model for accuracy
+qda_fit_data <- train(diagnosis ~ .,
+                      data = data_train,
+                      method = "qda",
+                      metric = "Accuracy",
+                      trControl = fitControl,
+                      preProcess = c("center", "scale")) # could add corr correction already here
+
+qda_fit_data
+# Use QDA model fitted on training data to predict class of testing data
+qda_model_test_data <- as.factor(predict(qda_fit_data,
+                                              newdata = data_test))
+
+
+# Confusion matrix for QDA model fitted on training data to predict class of
+# testing data (data = predicted by model, reference = observed/true)
+CM_qda <-confusionMatrix(data = qda_model_test_data,
+                  reference = as.factor(data_test$diagnosis))
+CM_qda
+
+# ROC curve---------------------------------------------------------------------
+
+# Random Forest-----------------------------------------------------------------
+
+# Add selcetion function... ?best
+
+#-------------------------------------------------------------------------------
+
+
+
+## Split into training and testing data (WITH stratification)
+set.seed(123)
+in_training_strat <- createDataPartition(data$diagnosis, p = .75, list = FALSE)
+data_train_strat <- data[ in_training_strat,]
+data_test_strat  <- data[-in_training_strat,]
+
+
 
 #### Question 4 b) ####
 
