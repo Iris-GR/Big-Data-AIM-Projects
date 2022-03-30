@@ -6,9 +6,9 @@ library(MASS)
 library(rpart)
 library(readr)
 library(tibble)
-library(dplyr)
-library(purrr)
-library(tidyverse)
+#library(dplyr)
+#library(purrr)
+#library(tidyverse)
 
 #### Question 1 ####
 # What assumptions do the following methods make about the distribution of 
@@ -47,7 +47,7 @@ library(tidyverse)
 # (e.g. standard deviation).
 #
 
-#### Question 2: QDA and CART models trained on ONE QDA dataset ####
+#### Question 2: QDA and CART models trained on ONE QDA dataset (illustration) ####
 
 ## Generate QDA dataset having two variables x1 and x2
 
@@ -61,7 +61,8 @@ n_class_qda <- 4
 mu_qda <- matrix(c(-1.5, 1.5, 1.5, -1.5, 1.5, -1.5, 1.5, -1.5),
                  nrow = n_class_qda)
 
-# Covariance matrix for variables x1 and x2
+# Covariance matrix for variables x1 and x2. Note difference in x1 and x2 
+# direction
 sigma_qda <- diag(c(1.5, 1))
 
 # Generate variables x1 and x2
@@ -115,7 +116,6 @@ qda_predict_testing_qda_prob <- as.matrix(predict(qda_fit_qda_data,
                                                   newdata = testing_qda,
                                                   type = "prob"))
 
-
 # Confusion matrix for QDA model fitted on QDA training data to predict QDA 
 # testing data class (data = predicted by model, reference = observed/true)
 CM_qda_model_qda_test_data <-
@@ -144,20 +144,135 @@ CM_cart_model_qda_test_data <-
                   reference = as.factor(testing_qda$Class))
 CM_cart_model_qda_test_data # Observe how unstable CART is!!!
 
+### Question 2: QDA and CART models trained on MANY QDA dataset ####
 
-#### Question 2: QDA and CART models trained on one CART dataset ####
+#Loop over multiple QAD datasets (for each i there is a k-fold-CV -> 1 confusion
+# matrix)
+N_datasets <- 100
 
+## Generate each QDA dataset having two variables x1 and x2
 
+# Sample size (i.e number samples from a specific distribution)
+n_qda <- 250
 
+# Number of classes (number of distributions to sample from)
+n_class_qda <- 4
 
+# Mean value of distributions
+mu_qda <- matrix(c(-1.5, 1.5, 1.5,-1.5, 1.5,-1.5, 1.5,-1.5),
+                 nrow = n_class_qda)
 
-#### Question 2: QDA and CART models trained on MANY QDA dataset ####
-# Loop over multiple QAD datasets (for each i there is k-fold-CV)
-N_datasets <- 1000
-# for i in 1:N_datasets {}
-set.seed(i)
+# Covariance matrix for variables x1 and x2. Note difference in x1 and x2
+# direction
+sigma_qda <- diag(c(1.5, 1))
 
-#### Question 2: QDA and CART models trained on MANY CART dataset ####
+# Initiate a list to collect the confusion matrix for each simulated dataset i
+# where a QDA model has been used for prediction
+CMs_qda_qda <- list()
+
+# ... and where a CART model has been used for prediction
+CMs_cart_qda <- list()
+
+for (i in 1:N_datasets){
+  set.seed(i)
+  # Generate variables x1 and x2
+  x_qda <- do.call(rbind, lapply(1:4, function(j) MASS::mvrnorm(n_qda, 
+                                                                mu_qda[j,], 
+                                                                sigma_qda)))
+  
+  # Assign the class/response variable labels
+  classes_qda <- c(rep("class_A", n_qda),
+                   rep("class_B", n_qda), 
+                   rep("class_C", n_qda),
+                   rep("class_D", n_qda)) 
+  
+  # Combine variables and classes (Note, ordered list.)
+  Data_qda <- tibble(x1 = x_qda[,1],
+                     x2 = x_qda[,2],
+                     Class = classes_qda)
+  
+  # Randomize row order in Data_qda
+  set.seed(i+1)
+  data_qda <- Data_qda[sample(1:nrow(Data_qda)), ]
+  
+  # Split the dataset into test and training
+  inTraining_qda <- createDataPartition(data_qda$Class, p = .75, list = FALSE)
+  training_qda <- data_qda[ inTraining_qda,]
+  testing_qda  <- data_qda[-inTraining_qda,]
+  
+  # Specify the type of resampling (10-fold CV, repeated 5 times)
+  fitControl_qda <- trainControl(method = "repeatedcv",
+                                 number = 10, 
+                                 repeats = 5)
+  
+  # Fit the qda training data for QDA model using specified resampling method
+  qda_fit_qda_data <- train(Class ~ .,
+                            data = training_qda,
+                            method = "qda",
+                            trControl = fitControl_qda)
+  
+  # Use QDA model fitted on QDA training data to predict QDA testing data class
+  qda_model_qda_test_data <- as.factor(predict(qda_fit_qda_data,
+                                               newdata = testing_qda))
+  
+  # Confusion matrix for QDA model fitted on QDA training data to predict QDA 
+  # testing data class (data = predicted by model, reference = observed/true)
+  CM_qda_model_qda_test_data <-
+    confusionMatrix(data = qda_model_qda_test_data,
+                    reference = as.factor(testing_qda$Class))
+  
+  # Store in list
+  CMs_qda_qda[[i]] <- CM_qda_model_qda_test_data$table
+  
+  ## CART model!!
+  # Fit the qda training data for CART model using specified resampling method
+  # method = 'rpart' gives the complexity parameter as tuning parameter, and 
+  # method = 'rpart2' gives the tree max depth as tuning parameter
+  cart_fit_qda_data <- train(Class ~ .,
+                             data = training_qda,
+                             method = "rpart", # Note, rpart/rpart2?
+                             trControl = fitControl_qda)
+  
+  # Use CART model fitted on QDA training data to predict QDA testing data class
+  cart_model_qda_test_data <- as.factor(predict(cart_fit_qda_data,
+                                                newdata = testing_qda))
+  
+  # Confusion matrix for CART model fitted on QDA training data to predict QDA 
+  # testing data class (data = predicted by model, reference = observed/true)
+  CM_cart_model_qda_test_data <-
+    confusionMatrix(data = cart_model_qda_test_data,
+                    reference = as.factor(testing_qda$Class))
+  # Store in list
+  CMs_cart_qda[[i]] <- CM_cart_model_qda_test_data$table
+}
+
+# Mean confusion matrix of N_datasets simulated QDA datasets predicted by QDA 
+# model and cart model respectively
+Mean_CMs_qda_qda <- Reduce('+', CMs_qda_qda) / N_datasets
+Mean_CMs_cart_qda <- Reduce('+', CMs_cart_qda) / N_datasets
+
+# Variance of confusion matrices of N_datasets simulated QDA datasets predicted
+# by QDA model and cart model respectively
+ar_qda_qda <- array(unlist(CMs_qda_qda), 
+             c(dim(CMs_qda_qda[[1]]),
+               length(CMs_qda_qda)))
+std_qda_qda <- round(apply(ar_qda_qda, c(1, 2), sd), 2)
+dimnames(std_qda_qda) <- dimnames(Mean_CMs_qda_qda)
+
+ar_cart_qda <- array(unlist(CMs_cart_qda), 
+                    c(dim(CMs_cart_qda[[1]]),
+                      length(CMs_cart_qda)))
+std_cart_qda <- round(apply(ar_cart_qda, c(1, 2), sd), 2)
+dimnames(std_cart_qda) <- dimnames(Mean_CMs_cart_qda)
+
+# Print out results
+sprintf('The mean confusion matrix of %i simulated QDA datasets predicted by QDA model and its standard deviation', N_datasets)
+Mean_CMs_qda_qda
+std_qda_qda
+
+sprintf('The mean confusion matrix of %i simulated QDA datasets predicted by CART model and its standard deviation', N_datasets)
+Mean_CMs_cart_qda
+std_cart_qda
 
 #### Load and get overview of breast cancer dataset ####
 # 1. Investigate if the class labels are balanced or imbalanced.
