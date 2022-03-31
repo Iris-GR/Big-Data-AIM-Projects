@@ -62,38 +62,100 @@ mu <- matrix(c(-1.5, 1, 1.5, 1.5, 1, -1.5), nrow = 3, ncol = 3)
 Sigma <- diag(c(1, 2, 3))
 # Generate variables
 X_train <- MASS::mvrnorm(n,mu[1,],Sigma)
-y_train <- rep(0,n)
+y_train <- rep(1,n)
 X_train <- rbind(X_train,MASS::mvrnorm(n, mu[2,],Sigma))
-y_train <- c(y_train, rep(1,n))
+y_train <- c(y_train, rep(2,n))
 X_train <- rbind(X_train,MASS::mvrnorm(n, mu[3,],Sigma))
-y_train <- c(y_train, rep(1,n))
+y_train <- c(y_train, rep(3,n))
+
+
+# Simulate two nicely separated datasets,
+# that does not seem relevant in the context of the classification problem
+
+#mu <- matrix(c(-1.5, 1.5, 1.5, -1.5), ncol = 2)
+#Sigma <- diag(c(1.5, 1.5))
+# Generate variables
+#X_train <- MASS::mvrnorm(n,mu[1,],Sigma)
+#y_train <- rep(0,n)
+#X_train <- rbind(X_train,MASS::mvrnorm(n, mu[2,],Sigma))
+#y_train <- c(y_train, rep(1,n))
 ### Note, you can change to different shapes Sigma for different classes and
 ### use different sample sizes as well of course.
 
 # classic data frame use in R
 
 data_train <- as.data.frame(cbind(X_train, y_train))
-names(data_train) <- c("x1","x2","x3","class")
+names(data_train) <- c("x1","x2","x3", "class")
 
-# Calculate centroids per class
+## dplyr is great for this kind of housekeeping tasks, of course you can go the 
+## long way around
+#dd<-as.matrix(data_train[,-4]) # the features as numerical matrix
+#data_centroid <- apply(dd[data_train[,1]=="setosa",],2,mean)
+#data_centroid <- rbind(data_centroid, apply(dd[data_train[,1]=="versicolor",],2,mean))
+#data_centroid <- rbind(data_centroid, apply(dd[data_train[,1]=="virginica",],2,mean))
+#                # this shows that "setosa" is taken as a reference
+ U <- data_train$class
+ levels(U)[1] <- "low"
+ levels(U)[2] <- "medium"
+ levels(U)[3] <- "high"
+ 
+ data_train <- as.data.frame(cbind(data_train,U))
+ 
+ 
+ 
+ 
+fit <- nnet::multinom(U ~ x1, data_train)
+
+# Linear predictor
+n_pred <- 100
+X_pred <- matrix(c(
+  rep.int(1, n_pred),
+  seq(4.2, 8.1, length.out = n_pred)),
+  ncol = 2)
+y_pred_lin <- X_pred %*% t(unname(coef(fit)))
+# Transform to probabilities
+y_pred <- cbind(
+  rep.int(1, n_pred), exp(y_pred_lin)) /
+  (1 + rowSums(exp(y_pred_lin)))
+# Collect all predicted data for plotting
+data_pred <- tibble(
+  x = rep.int(X_pred[,2], 3),
+  y = as.vector(y_pred),
+  class = as.factor(
+    rep(levels(data_train$U), each = n_pred)))
+
+
+#test <- rep("A", 10)
+#test <- rbind(test, rep("B", 10))
+#test <- rbind(test, rep("C", 10))
+#levels(test)
+
+
+# Calculate centroids per class\
 data_centroid <- data_train %>%
   group_by(class) %>%
   summarise(
     x1 = mean(x1),
     x2 = mean(x2),
     x3 = mean(x3))
-## dplyr is great for this kind of housekeeping tasks, of course you can go the 
-## long way around
-dd<-as.matrix(data_train[,-1]) # the features as numerical matrix
-data_centroid <- apply(dd[data_train[,1]=="setosa",],2,mean)
-data_centroid <- rbind(data_centroid, apply(dd[data_train[,1]=="versicolor",],2,mean))
-data_centroid <- rbind(data_centroid, apply(dd[data_train[,1]=="virginica",],2,mean))
+
+# Classify with nearest centroid method
+h <- 0.03
+x1s <- seq(-3, 5, by = h)
+x2s <- seq(-3, 5, by = h)
+x3s <- seq(-3, 5, by = h)
+X_pred <- expand.grid(x1s, x2s,x3s) # creates a grid from the two vectors - 
+# can use rep and seq for this but the command is convenient.
+colnames(X_pred) <- c("x1", "x2","x3")
+n_pred <- dim(X_pred)[1]
+
+
 
 ## ----2021-lda-qda-example, fig.width=5, fig.height=2.3, fig.align="center", echo=FALSE, warning=FALSE, results=FALSE, cache=TRUE, message=FALSE----
 # Same data as for nearest centroid example
 fit_qda <- MASS::qda(class ~ x1 + x2 + x3, data_train)
 
-y_pred_qda <- predict(fit_qda, X_pred)$class
+y_pred_qda <- predict(fit_qda, X_pred)$U
 
 data_pred_da <- cbind(
   data_pred,

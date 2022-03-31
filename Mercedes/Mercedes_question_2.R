@@ -35,72 +35,6 @@ data_pred <- tibble(
   Species = as.factor(
     rep(levels(data_train$Species), each = n_pred)))
 
-p1 <- ggplot(
-  data_pred,
-  aes(x = x, y = y, colour = Species)) +
-  geom_line() +
-  scale_x_continuous(
-    name = NULL,
-    labels = NULL,
-    lim = c(4.2, 8.1),
-    expand = c(0, 0)) +
-  scale_y_continuous(name = "Probability", breaks = c(0, 0.5, 1)) +
-  scale_colour_manual(values = cbPalette[-1], guide = FALSE) +
-  theme_minimal() +
-  theme(
-    axis.title.y = element_text(
-      margin = margin(0, 3.5, 0, 0, "lines")),
-    plot.margin = margin(.25, .5, 0, 0.1, "lines"),
-    axis.text = element_text(size = 9),
-    axis.title = element_text(size = 9))
-
-p2 <- ggplot(
-  tibble(
-    x = rep.int(X_pred[,2], 3),
-    y = c(rep.int(0, n_pred), as.vector(y_pred_lin)),
-    Species = as.factor(
-      rep(levels(data_train$Species), each = n_pred))),
-  aes(x = x, y = y, colour = Species)) +
-  geom_line() +
-  scale_x_continuous(
-    name = NULL,
-    labels = NULL,
-    lim = c(4.2, 8.1),
-    expand = c(0, 0)) +
-  scale_y_continuous(name = "Linear predictor") +
-  scale_colour_manual(values = cbPalette[-1], guide = FALSE) +
-  theme_minimal() +
-  theme(
-    axis.title.y = element_text(
-      margin = margin(0, 3.5, 0, 0, "lines")),
-    plot.margin = margin(.25, .5, 0, 0.1, "lines"),
-    axis.text = element_text(size = 9),
-    axis.title = element_text(size = 9))
-
-p3 <- ggplot(
-  data_train,
-  aes(x = Sepal.Length,
-      y = as.numeric(Species),
-      colour = Species)) +
-  geom_jitter(height = 0, width=0.1) +
-  scale_x_continuous(
-    name = "Sepal Length",
-    lim = c(4.2, 8.1),
-    expand = c(0, 0)) +
-  scale_y_continuous(
-    name = "Species",
-    breaks = c(1, 2, 3),
-    labels = levels(data_train$Species)) +
-  scale_colour_manual(values = cbPalette[-1], guide = FALSE) +
-  theme_minimal() +
-  theme(
-    plot.margin = margin(0, .5, 0, 0.1, "lines"),
-    axis.text = element_text(size = 9),
-    axis.title = element_text(size = 9))
-
-ggpubr::ggarrange(
-  p1, p2, p3, nrow = 3, heights = c(1, 1, 1))
-
 ## Of course you can use the more simple plotting commands here too. par(mfrow=c(3,1))
 ## is a way to organize subpanels for a plot (here 3 rows and 1 column)
 ## However, ggplot does produce nicer plots - just take your time to ensure you
@@ -155,47 +89,16 @@ y_pred2 <- apply(
         }),
   1, which.min) # Determine if the vector is closest to centroid 1, 2, or 3
 
-## Long and ugly way around...
-
-dd<-function(xin,cs) {
-  sum((xin-cs)^2)
-}
-DD<-apply(X_pred,1,dd,cs=centroids[1,])
-DD<-cbind(DD,apply(X_pred,1,dd,cs=centroids[2,]))
-DD<-cbind(DD,apply(X_pred,1,dd,cs=centroids[3,]))
-y_pred<-apply(DD,1,which.min)
-
-y_pred<-apply(X_pred,1,closestcentroid,cs=centroids)  
-
-colvec <- cbPalette[1:3]
-ycol <- y_pred
-ycol[y_pred==1]<-colvec[1]
-ycol[y_pred==2]<-colvec[2]
-ycol[y_pred==3]<-colvec[3]
-#
-plot(X_pred,col=ycol,pch="S")
-colvec2 <- cbPalette[4:6]
-ycol2 <- rep(0,length(data_train$class))
-ycol2[data_train$class=="setosa"]<-colvec2[1]
-ycol2[data_train$class=="versicolor"]<-colvec2[2]
-ycol2[data_train$class=="virginica"]<-colvec2[3]
-points(data_train[,2:3],col=ycol2,pch=16)
-points(centroids,col=colvec2,pch=4,lwd=2,cex=2.5)
-
-
-
 
 ## ----2021-lda-qda-example, fig.width=5, fig.height=2.3, fig.align="center", echo=FALSE, warning=FALSE, results=FALSE, cache=TRUE, message=FALSE----
 # Same data as for nearest centroid example
-fit_lda <- MASS::lda(class ~ x1 + x2, data_train)
 fit_qda <- MASS::qda(class ~ x1 + x2, data_train)
 
-y_pred_lda <- predict(fit_lda, X_pred)$class
 y_pred_qda <- predict(fit_qda, X_pred)$class
 
 data_pred_da <- cbind(
   data_pred,
-  tibble(class_lda = y_pred_lda, class_qda = y_pred_qda)) %>%
+  tibble(class_qda = y_pred_qda)) %>%
   rename(class_centroid = class)
 
 ### Up to here it's pretty straight forward
