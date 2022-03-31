@@ -149,24 +149,25 @@ CM_model_test_data
 # Fit the qda training data for CART model using specified resampling method
 # method = 'rpart' gives the complexity parameter as tuning parameter, and 
 # method = 'rpart2' gives the tree max depth as tuning parameter
-_fit_qda_data <- train(Class ~ .,
-                           data = training_qda,
-                           method = "rpart", # Note, rpart/rpart2?
-                           trControl = fitControl_qda)
-cart_fit_qda_data
+qda_fit_data <- train(diagnosis ~ .,
+                           data = training,
+                           method = "qda", 
+                           trControl = fitControl)
+qda_fit_data
 
 # Use CART model fitted on QDA training data to predict QDA testing data class
-cart_model_qda_test_data <- as.factor(predict(cart_fit_qda_data,
-                                              newdata = testing_qda))
+qda_model_test_data <- as.factor(predict(qda_fit_data,
+                                              newdata = testing,
+                                              ))
 
 # Confusion matrix for CART model fitted on QDA training data to predict QDA 
 # testing data class (data = predicted by model, reference = observed/true)
-CM_cart_model_qda_test_data <-
-  confusionMatrix(data = cart_model_qda_test_data,
-                  reference = as.factor(testing_qda$Class))
-CM_cart_model_qda_test_data # Observe how unstable CART is!!!
+CM_qda_model_test_data <-
+  confusionMatrix(data = qda_model_test_data,
+                  reference = as.factor(testing$diagnosis))
+CM_qda_model_test_data
 
-
+# Without stratification
 
 
 

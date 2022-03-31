@@ -65,11 +65,13 @@ data <- data[sample(1:nrow(data)), ] # The row order of the dataframe
 
 
 # Plot the generated QDA dataset for overview 
+
 ggplot(data, aes(x1 = radius_mean, x2 = diagnosis)) +
   geom_point(aes(colour = as.factor(diagnosis)))
 
 # Split the datasets into test and training
-inTraining <- createDataPartition(data$diagnosis, p = .75, list = FALSE)
+set.seed(130)
+inTraining <- sample(1:427, replace = FALSE)
 training <- data[ inTraining,]
 testing  <- data[-inTraining,]
 
