@@ -13,18 +13,12 @@ library(e1071)
 library(randomForest)
 library(ranger)
 library(pROC)
-#library(tidyverse)
+library(RColorBrewer)
+#library(gplots)
+#library(ggplot2)
+library(lattice)
 
-#### Question 1 ####
-# What assumptions do the following methods make about the distribution of 
-# features for a certain class? What does this mean abstractly but also 
-# visually?
-# 1. Linear discriminant analysis (distributions have same variance)
-# 2. Quadratic discriminant analysis (distributions can have different variance)
-# 3. kNN
-# 4. CART
-# Also think about the impact of k in kNN and the impact of different parameters 
-# on the CART model.
+
 
 #### Question 2 ####
 # For the following questions focus on QDA and CART.
@@ -51,11 +45,10 @@ library(pROC)
 # above. Always report average values but always with a measure of uncertainty 
 # (e.g. standard deviation).
 #
-
-#### Question 2: QDA and CART models trained on ONE QDA dataset (illustration) ####
+# Question 2: QDA and CART models trained on ONE QDA dataset (illustration) ####
 
 ## Generate QDA dataset having two variables x1 and x2
-
+set.seed(345)
 # Sample size (i.e number samples from a specific distribution)
 n_qda <- 250
 
@@ -63,12 +56,12 @@ n_qda <- 250
 n_class_qda <- 4
 
 # Mean value of distributions
-mu_qda <- matrix(c(-1.5, 1.5, 1.5, -1.5, 1.5, -1.5, 1.5, -1.5),
+mu_qda <- matrix(c(-1.5, 1.5, 1.5, -3, 1.5, 1.5, -1.5, -2.5),
                  nrow = n_class_qda)
 
 # Covariance matrix for variables x1 and x2. Note difference in x1 and x2 
 # direction
-sigma_qda <- diag(c(1.5, 1))
+sigma_qda <- diag(c(1.7, 1))
 
 # Generate variables x1 and x2
 set.seed(12344)
@@ -88,12 +81,26 @@ Data_qda <- tibble(x1 = x_qda[,1],
                    Class = classes_qda)
 
 # Randomize row order in Data_qda
-set.seed(124)
+set.seed(1245)
 data_qda <- Data_qda[sample(1:nrow(Data_qda)), ]
 
 # Plot the generated QDA dataset for overview 
 ggplot(data_qda, aes(x = x1, y = x2)) +
   geom_point(aes(colour = as.factor(Class)))
+
+xyplot(
+  Data_qda$x2 ~ Data_qda$x1,
+  group = Class,
+  data = Data_qda,
+  auto.key = list(space = "top", cex=1.7),
+  xlab = list(label= "Feature 1", cex=2),
+  ylab = list(label= "Feature 2", cex=2),
+  jitter.x = TRUE,
+  jitter.y = TRUE,
+  reference.line = TRUE,
+  par.settings = list(superpose.symbol = list(pch=21,
+    cex = 1.1)))
+
 
 # Split the datasets into test and training
 inTraining_qda <- createDataPartition(data_qda$Class, p = .75, list = FALSE)
@@ -128,6 +135,9 @@ CM_qda_model_qda_test_data <-
                   reference = as.factor(testing_qda$Class))
 CM_qda_model_qda_test_data
 
+# F1 scores per class
+CM_qda_model_qda_test_data$byClass[,6]
+
 ## CART model!!
 # Fit the qda training data for CART model using specified resampling method
 # method = 'rpart' gives the complexity parameter as tuning parameter, and 
@@ -149,11 +159,14 @@ CM_cart_model_qda_test_data <-
                   reference = as.factor(testing_qda$Class))
 CM_cart_model_qda_test_data # Observe how unstable CART is!!!
 
-### Question 2: QDA and CART models trained on MANY QDA dataset ####
+# F1 scores per class
+CM_cart_model_qda_test_data$byClass[,6]
+
+# Question 2: QDA and CART models trained on MANY QDA dataset ####
 
 #Loop over multiple QAD datasets (for each i there is a k-fold-CV -> 1 confusion
 # matrix)
-N_datasets <- 100
+N_datasets <- 10000
 
 ## Generate each QDA dataset having two variables x1 and x2
 
@@ -164,19 +177,23 @@ n_qda <- 250
 n_class_qda <- 4
 
 # Mean value of distributions
-mu_qda <- matrix(c(-1.5, 1.5, 1.5,-1.5, 1.5,-1.5, 1.5,-1.5),
+mu_qda <- matrix(c(-1.5, 1.5, 1.5, -3, 1.5, -1.5, 1.5, -2.5),
                  nrow = n_class_qda)
 
-# Covariance matrix for variables x1 and x2. Note difference in x1 and x2
+# Covariance matrix for variables x1 and x2. Note difference in x1 and x2 
 # direction
-sigma_qda <- diag(c(1.5, 1))
+sigma_qda <- diag(c(1.7, 1))
 
 # Initiate a list to collect the confusion matrix for each simulated dataset i
-# where a QDA model has been used for prediction
+# where a QDA and CART models  has been used for prediction
 CMs_qda_qda <- list()
-
-# ... and where a CART model has been used for prediction
 CMs_cart_qda <- list()
+
+# Initiate lists for F1 scores
+F1s_class_qda_qda <- list()
+F1s_mean_qda_qda <- list()
+F1s_class_cart_qda <- list()
+F1s_mean_cart_qda <- list()
 
 for (i in 1:N_datasets){
   set.seed(i)
@@ -226,8 +243,16 @@ for (i in 1:N_datasets){
     confusionMatrix(data = qda_model_qda_test_data,
                     reference = as.factor(testing_qda$Class))
   
-  # Store in list
+  # Store in list cinfusion matrix
   CMs_qda_qda[[i]] <- CM_qda_model_qda_test_data$table
+  
+  # Store in list F1 score per class, QDA model predict QDA test data
+  F1_class_qda_qda <- as.matrix(CM_qda_model_qda_test_data$byClass[,6])
+  colnames(F1_class_qda_qda ) <- c('F1')
+  F1s_class_qda_qda[[i]]  <- F1_class_qda_qda 
+  
+  # Overall (arithmetic mean) F1 score for QDA model predict QDA test data
+  F1s_mean_qda_qda[[i]] <- mean(CM_qda_model_qda_test_data$byClass[,6])
   
   ## CART model!!
   # Fit the qda training data for CART model using specified resampling method
@@ -249,7 +274,17 @@ for (i in 1:N_datasets){
                     reference = as.factor(testing_qda$Class))
   # Store in list
   CMs_cart_qda[[i]] <- CM_cart_model_qda_test_data$table
+  
+  # Store in list F1 score per class, CART model predict QDA test data
+  F1_class_cart_qda <- as.matrix(CM_cart_model_qda_test_data$byClass[,6])
+  colnames(F1_class_qda_qda ) <- c('F1')
+  F1s_class_cart_qda[[i]]  <- F1_class_cart_qda 
+  
+  # Overall (arithmetic mean) F1 score for CART model predict QDA test data
+  F1s_mean_cart_qda[[i]] <- mean(CM_cart_model_qda_test_data$byClass[,6])
 }
+# -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
+# Compute mean and standard deviation of Confusion matrices 
 
 # Mean confusion matrix of N_datasets simulated QDA datasets predicted by QDA 
 # model and cart model respectively
@@ -270,15 +305,86 @@ ar_cart_qda <- array(unlist(CMs_cart_qda),
 std_cart_qda <- round(apply(ar_cart_qda, c(1, 2), sd), 2)
 dimnames(std_cart_qda) <- dimnames(Mean_CMs_cart_qda)
 
+# -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
+# Mean F1 scores per class of N_datasets, simulated QDA datasets predicted by QDA 
+# model and cart model respectively.
+Mean_F1s_class_qda_qda<- Reduce('+', F1s_class_qda_qda) / N_datasets
+Mean_F1s_class_cart_qda <- Reduce('+', F1s_class_cart_qda) / N_datasets
+
+# Variance of F1 scores per class of N_datasets simulated QDA datasets predicted
+# by QDA model and cart model respectively
+ar_F1s_class_qda_qda <- array(unlist(F1s_class_qda_qda), 
+                    c(dim(F1s_class_qda_qda[[1]]),
+                      length(F1s_class_qda_qda)))
+std_F1s_class_qda_qda <- round(apply(ar_F1s_class_qda_qda, c(1, 2), sd), 3)
+dimnames(std_F1s_class_qda_qda) <- dimnames(Mean_F1s_class_qda_qda)
+
+ar_F1s_class_cart_qda <- array(unlist(F1s_class_cart_qda), 
+                              c(dim(F1s_class_cart_qda[[1]]),
+                                length(F1s_class_cart_qda)))
+std_F1s_class_cart_qda <- round(apply(ar_F1s_class_cart_qda, c(1, 2), sd), 2)
+dimnames(std_F1s_class_cart_qda) <- dimnames(Mean_F1s_class_cart_qda)
+
+
+# Mean of mean F1 scores per class of N_datasets, simulated QDA datasets 
+# predicted by QDA model and cart model respectively.
+Mean_F1s_mean_qda_qda <- Reduce('+', F1s_mean_qda_qda) / N_datasets
+Mean_F1s_mean_cart_qda <- Reduce('+', F1s_mean_cart_qda) / N_datasets
+
+# Variance of mean F1 scores of N_datasets simulated QDA datasets predicted
+# by QDA model and cart model respectively
+std_F1s_mean_qda_qda <- sd(as.vector(unlist(F1s_mean_qda_qda)))
+std_F1s_mean_cart_qda <- sd(as.vector(unlist(F1s_mean_cart_qda)))
+
+# -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
+# Compute mean and standard deviation of TEST missclassification rates for two 
+# models also known as the error rate (error rate = 1 - accuracy)
+error_rates_qda_qda <- matrix()
+error_rates_cart_qda <- matrix()
+
+for (i in 1:N_datasets){
+  error_rates_qda_qda[i] <- rbind(1 - sum(diag(CMs_qda_qda[[i]]))/sum(CMs_qda_qda[[i]]))
+  error_rates_cart_qda[i] <- rbind(1 - sum(diag(CMs_cart_qda[[i]]))/sum(CMs_cart_qda[[i]]))
+}
+
+mean_error_rates_qda_qda <- mean(error_rates_qda_qda)
+sd_error_rates_qda_qda <- sd(error_rates_qda_qda)
+
+mean_error_rates_cart_qda <- mean(error_rates_cart_qda)
+sd_error_rates_cart_qda <- sd(error_rates_cart_qda)
+
+# -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 # Print out results
 sprintf('The mean confusion matrix of %i simulated QDA datasets predicted by QDA model and its standard deviation', N_datasets)
-Mean_CMs_qda_qda
+round(Mean_CMs_qda_qda, 2)
 std_qda_qda
 
+sprintf('The F1 mean and per class of %i simulated QDA datasets predicted by QDA model and its standard deviation', N_datasets)
+round(Mean_F1s_class_qda_qda, 2)
+round(std_F1s_class_qda_qda, 2)
+
+round(Mean_F1s_mean_qda_qda, 2)
+std_F1s_mean_qda_qda 
+
+sprintf('The test mean error rate of %i simulated QDA datasets predicted by QDA model and its standard deviation', N_datasets)
+round(mean_error_rates_qda_qda, 2)
+round(sd_error_rates_qda_qda, 2)
+
 sprintf('The mean confusion matrix of %i simulated QDA datasets predicted by CART model and its standard deviation', N_datasets)
-Mean_CMs_cart_qda
+round(Mean_CMs_cart_qda, 2)
 std_cart_qda
 
+sprintf('The F1 mean and per class of%i simulated QDA datasets predicted by CART model and its standard deviation', N_datasets)
+round(Mean_F1s_class_cart_qda, 2)
+std_F1s_class_cart_qda
+
+round(Mean_F1s_mean_cart_qda, 2)
+round(std_F1s_mean_cart_qda, 2)
+
+sprintf('The mean test error rate of %i simulated QDA datasets predicted by CART model and its standard deviation', N_datasets)
+round(mean_error_rates_cart_qda, 2)
+round(sd_error_rates_cart_qda, 2)
+# -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
 #### Load and get overview of breast cancer dataset ####
 # 1. Investigate if the class labels are balanced or imbalanced.
@@ -452,7 +558,7 @@ CM_qda
 # Fit the training data for random forest model for accuracy
 rf_fit_data <- train(diagnosis ~ .,
                       data = data_train,
-                      method = 'ranger',
+                      method = 'ranger', # 'rf' can also work
                       trControl = fitControl,
                       preProcess = c("center", "scale")) # could add corr correction already here
 
