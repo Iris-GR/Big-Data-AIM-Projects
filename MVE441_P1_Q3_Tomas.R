@@ -5,6 +5,8 @@ library(tibble)
 library(dplyr)
 library(purrr)
 library(corrplot)
+library(caret)
+library(CRAN)
 
 names <- c("id_number", "diagnosis", "radius_mean",
            "texture_mean", "perimeter_mean", "area_mean",
@@ -65,20 +67,103 @@ corrplot(corr_matrix)
 
 #Q3:
 
+#Remove the identification number of patient, since it is not necessary here
+uci_bc_data = subset(uci_bc_data, select = -c(id_number))
+
+#Q3.1 <-----------------------------------
+#Metrics:
+error_metric=function(CM,beta)
+{
+  
+  TN =CM[1,1]
+  TP =CM[2,2]
+  FP =CM[1,2]
+  FN =CM[2,1]
+  precision =(TP)/(TP+FP)
+  accuracy_model  =(TP+TN)/(TP+TN+FP+FN)
+  recall_model = (TP)/(TP+FN)
+  F_beta = (1+beta^2)*(precision*recall_model)/(beta^2 * precision + recall_model)
+  # print(paste("Recall value of the model: ",round(recall_model,2)))
+  # print(paste("F_beta of the model: ",round(F_beta,2)))
+  # print(paste("Accuracy of the model: ",round(accuracy_model,2)))
+  return(c(recall_model,F_beta,accuracy_model))
+}
+
+
 #Skapa 10 folds:
-ix_folds = createFolds(uci_bc_data, k = 10)
-model <- train(V3 ~ ., train_set,
-               method = "rf")
+ix_folds = createFolds(uci_bc_data$diagnosis, k = 10)
+
+#Lista för att spara metrik-värdena
+metric_values <- NULL
+
+for(i in 1:10){
+  test_set = uci_bc_data[unlist(ix_folds[i]),]
+  train_set = uci_bc_data[-unlist(ix_folds[i]),]
+  
+  model_rf <- train(diagnosis ~ ., train_set,
+                 method = "rf")
+  
+  predicted_rf = data.frame(predict(model_rf, test_set))
+  colnames(predicted_rf)<-c('class')
+  
+  CM = confusionMatrix(predicted_rf$class, test_set$diagnosis)
+  metric_value = error_metric(CM$table, 1.5)
+  metric_values = rbind(metric_values, metric_value);
+}
+
+#Calculate the average values and the respective standard deviations:
+avg_metric_values = colMeans(metric_values)
+sd_metric_values = sapply(as.data.frame(metric_values), sd)
+#averages = 0.9618497 0.9673302 0.9629386
+#sd = 0.02633959 0.02137206 0.02440664
 
 
-# predictions_QDA = data.frame(predict(model, test_set))
-# predictions_QDA = cbind(test_set, predictions_QDA)
-# 
-# #Percentage of correct predictions
-# score = mean(predictions_QDA$predict.model..test_set. == predictions_QDA$V3)
-# 
-# #Test error using 0-1 loss
-# R_te = 1 - score
+#Q3.2 <----------------------------------------------
+#We want to ensure that someone with a malignant tumour is not classified
+#as someone with a benign tumour, in other words we want to minimize the
+#number of false negatives (and maximize the number of true positives)
+#That is the same thing as maximizing the recall.
 
+#At the same time, however, we also want people with benign tumours not to
+#be classified as someone with a malignant tumour, since they then would
+#undergo unecessary dangerous treatment. In other words we would like to
+#minimize the number of false positives (and maximizing the number of true
+#positives). That is the same thing as maximizing the precision.
 
-#Prova random forest
+#To compromise between the two, we are thus interested in the F_beta-score,
+#which is somewhere inbetween, depending on the value of beta.
+
+#Q3.3 <-----------------------------------------------
+
+ix_folds = createFolds(uci_bc_data$diagnosis, k = 10)
+
+metric_values <- NULL
+
+for(i in 1:10){
+  test_set = uci_bc_data[unlist(ix_folds[i]),]
+  train_set = uci_bc_data[-unlist(ix_folds[i]),]
+  
+  model_QDA <- train(diagnosis ~ ., train_set,
+                    method = "qda")
+  
+  predicted_rf = data.frame(predict(model_rf, test_set))
+  colnames(predicted_rf)<-c('class')
+  
+  CM = confusionMatrix(predicted_rf$class, test_set$diagnosis)
+  metric_value = error_metric(CM$table, 1.5)
+  metric_values = rbind(metric_values, metric_value);
+}
+
+#Calculate the average values and the respective standard deviations:
+avg_metric_values = colMeans(metric_values)
+sd_metric_values = sapply(as.data.frame(metric_values), sd)
+#averages = 0.9972222 0.9980603 0.9982143
+#sd = 0.008784105 0.006133728 0.005646924
+
+#Conclusion: QDA is working alot better! Don't know exactly what the settings
+#of 'rf', can't find it in the documentation. But maybe it could produce better
+#results by tweaking it, or using a different type of random forest.
+
+#Q3.4 <------------------------------------------------------
+
+#Stratified sampling?
