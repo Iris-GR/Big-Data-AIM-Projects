@@ -17,7 +17,7 @@ When you save the notebook, an HTML file containing the code and output will be 
 
 The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
 
-# Data loading
+# EDA
 ```{r}
 
 library(readr)
@@ -68,13 +68,20 @@ uci_bc_data
 ```
 
 ```{r}
+summary(uci_bc_data)
+```
+
+```{r}
 library(ggplot2)
-ggplot(diamonds, aes(x = diagnosis)) +
+ggplot(uci_bc_data, aes(x = diagnosis)) +
   geom_bar()
 ```
 
+```{r}
+dplyr::count(uci_bc_data, diagnosis, sort = TRUE)/dim(uci_bc_data)[1]
+```
 
-
+# Question 3
 
 
 
