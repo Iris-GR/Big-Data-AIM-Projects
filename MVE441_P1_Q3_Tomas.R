@@ -167,3 +167,19 @@ sd_metric_values = sapply(as.data.frame(metric_values), sd)
 #Q3.4 <------------------------------------------------------
 
 #Stratified sampling?
+
+ix_Malignant = which(uci_bc_data$diagnosis == "M")
+ix_Benign = which(uci_bc_data$diagnosis == "B")
+ix_Malignant_folds = createFolds(ix_Malignant, k = 10)
+ix_Benign_folds = createFolds(ix_Benign, k = 10)
+
+a = uci_bc_data[unlist(ix_Malignant_folds[1]),]
+b = uci_bc_data[unlist(ix_Benign_folds[1]),]
+test_set = rbind(a,b)
+
+
+ix_combined = c(ix_Malignant_folds[1], ix_Benign_folds[1])
+train_set = uci_bc_data[-unlist(ix_combined),]
+
+#Wrong sizes because the lists ix_malignant_folds and ix_benign_folds can have
+#varying number of indices in their lists? So something weird happens
