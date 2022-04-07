@@ -146,10 +146,10 @@ for(i in 1:10){
   model_QDA <- train(diagnosis ~ ., train_set,
                     method = "qda")
   
-  predicted_rf = data.frame(predict(model_rf, test_set))
-  colnames(predicted_rf)<-c('class')
+  predicted_QDA = data.frame(predict(model_QDA, test_set))
+  colnames(predicted_QDA)<-c('class')
   
-  CM = confusionMatrix(predicted_rf$class, test_set$diagnosis)
+  CM = confusionMatrix(predicted_QDA$class, test_set$diagnosis)
   metric_value = error_metric(CM$table, 1.5)
   metric_values = rbind(metric_values, metric_value);
 }
@@ -157,12 +157,10 @@ for(i in 1:10){
 #Calculate the average values and the respective standard deviations:
 avg_metric_values = colMeans(metric_values)
 sd_metric_values = sapply(as.data.frame(metric_values), sd)
-#averages = 0.9972222 0.9980603 0.9982143
-#sd = 0.008784105 0.006133728 0.005646924
+#averages = 0.967 0.966 0.958
+#sd = 0.0283 0.0263 0.0325 
 
-#Conclusion: QDA is working alot better! Don't know exactly what the settings
-#of 'rf', can't find it in the documentation. But maybe it could produce better
-#results by tweaking it, or using a different type of random forest.
+#Conclusion: Not so big difference.
 
 #Q3.4 <------------------------------------------------------
 
