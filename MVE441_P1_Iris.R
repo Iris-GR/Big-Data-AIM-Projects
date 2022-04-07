@@ -637,7 +637,7 @@ CM_rf_strat
 #-------------------------------------------------------------------------------
 
 
-#### Question 4 b) 
+#### Question 4 b)####
 
 # Create dataset starting fresh from the uci_bc_data. Change diagnosis to 0-1
 # factor and remove Id number
