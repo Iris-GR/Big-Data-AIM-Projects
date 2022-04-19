@@ -93,7 +93,7 @@ error_metric=function(CM,beta)
 #Skapa 10 folds:
 ix_folds = createFolds(uci_bc_data$diagnosis, k = 10)
 
-#Lista för att spara metrik-värdena
+#Lista fC6r att spara metrik-vC$rdena
 metric_values <- NULL
 
 for(i in 1:10){
@@ -164,7 +164,7 @@ sd_metric_values = sapply(as.data.frame(metric_values), sd)
 
 #Q3.4 <------------------------------------------------------
 
-#Stratified sampling?
+#Stratified sampling? #See createDataPartition function...
 
 ix_Malignant = which(uci_bc_data$diagnosis == "M")
 ix_Benign = which(uci_bc_data$diagnosis == "B")
