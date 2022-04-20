@@ -19,7 +19,7 @@ install.packages("mclust")
 
 
 ## ---- Loading Packages Into Memory -------------------------------------------
-library("readr")
+library(readr)
 library("ggplot2")
 library("dplyr")
 library("tidyr")
@@ -35,6 +35,7 @@ library("plot3D")
 library("rgl")
 library("kableExtra")
 library("NbClust")
+library(factoextra)
 
 
 ## ---- Colour Palette ---------------------------------------------------------
@@ -52,6 +53,10 @@ data <- as_tibble(read.csv("TCGA-PANCAN-HiSeq-801x20531//data.csv",
                            header = TRUE,
                            row.names = 1))
 
+
+labels <- as_tibble(read.csv("TCGA-PANCAN-HiSeq-801x20531//labels.csv",
+                             header = TRUE,
+                             row.names = 1))
 
 ## ---- Q.1.1 - Overview -------------------------------------------------------
 
@@ -81,7 +86,14 @@ hist(vars,
      xlab = "Variance")                          # Histogram of variances
 
 # 0 variance = constant values
-constants <- which(vars == 0)  # In total 267 constants                   
+constants <- vars == 0  # In total 267 constants    
+
+# Data set with constants only:
+test <- data[constants]
+
+# Data set without constants:
+data <- data[!constants]
+
 
 ## ---- TASK 2 -----------------------------------------------------------------
 ## ---- High Variance Filtering ------------------------------------------------
@@ -242,6 +254,96 @@ qplot(c(1:10), var_explained[1:10]) +
 # number of different types of plots using a convenient calling scheme.
 # It is a quick fix for the more complex ggplot.
 
+## ---- PCA using FactoMineR ---------------------------------------------------
+
+install.packages("FactoMineR")
+
+library(FactoMineR)
+
+X <- filtered_hv_data
+
+
+res.pca <- PCA(X, scale.unit = TRUE, ncp = 5, graph = FALSE)
+
+barplot(res.pca$eig[,1], 
+        main = "Eigenvalues")
+#names.arg = 1:nrow(res.pca$eig))
+plot(res.pca, 
+     choix = "ind",
+     habillage = 801,
+     label = "none",
+     xlab = "PC1 (15.46%)",
+     ylab = "PC2 (11.34%)")
+
+# Get eigenvalues using factoextra package
+# The eigenvalues measure the amount of variation
+# retained by each principal component. 
+eig.val <- get_eigenvalue(res.pca)
+eig.val
+
+# Eigenvalues are large for the first pc and small for the latter (because
+# the first components are the directions containing the most of the datasets 
+# variation)
+
+
+# Scree plot using factoextra package
+fviz_eig(res.pca, addlabels = TRUE, ylim = c(0,50))
+
+# From this plot we see that we might want to stop at the 10th principal
+# component, as more than 50% of variation is explained by these components. 
+
+# Graph of variables
+vari <- get_pca_var(res.pca)
+
+# To plot variables:
+fviz_pca_var(res.pca, col.var = "black", label = "none")
+
+# Colour by groups
+# Create a grouping variable using kmeans
+# Trying 5 centers
+set.seed(123)
+res.km <- kmeans(vari$coord, centers = 5, nstart = 25)
+grp <- as.factor(res.km$cluster)
+
+#colour variables by groups (from labels)
+
+# Add labels to data
+data_newest <- cbind(labels, data)
+
+# Factorise categorical data (to be able to use col.ind)
+C <- as.factor(data_newest$Class)
+
+# Get individuals
+ind <- get_pca_ind(res.pca)
+
+# Plot individuals grouped by colour
+fviz_pca_ind(res.pca, 
+             geom.ind = "point",
+             col.ind = C,
+             palette = c(cbPalette[6],
+                         cbPalette[4],
+                         cbPalette[5],
+                         cbPalette[7],
+                         cbPalette[8]),
+             addEllipses = TRUE,
+             legend.title = "Groups",
+             xlab = "PC1 (15.5%)",
+             ylab = "PC2 (11.3%)")
+
+# Without ellipses
+fviz_pca_ind(res.pca, 
+             geom.ind = "point",
+             col.ind = C,
+             palette = c(cbPalette[6],
+                         cbPalette[4],
+                         cbPalette[5],
+                         cbPalette[7],
+                         cbPalette[8]),
+             addEllipses = FALSE,
+             legend.title = "Groups",
+             xlab = "PC1 (15.5%)",
+             ylab = "PC2 (11.3%)")
+
 
 ## ---- Q.1.2 - Clustering -----------------------------------------------------
 
@@ -257,6 +359,7 @@ library("MASS")
 library("FNN")
 library("cluster")
 library("mclust") # Good for GMM clustering/ BIC
+library(factoextra)
 
 # NBclust provides 30 indices for determining the number of clusters and 
 # proposes to users the best scheme from the different results obtained by
@@ -305,7 +408,8 @@ X <- filtered_hv_data
 
 # Optimal number of clusters in the data
 library(cluster)
-# Looking at the knees/ wss
+## ---- Looking at the knees/ wss ----------------------------------------------
+# The lower wss, the better
 if (FALSE){
   # kmeans:
   fviz_nbclust(X, kmeans, method = "wss") + 
@@ -316,11 +420,13 @@ if (FALSE){
     geom_vline(xintercept = 3, linetype = 2)
   
   # hierarchical clustering
-  fviz_nbclust(X, cluster::hcut, method = "wss") + 
+  fviz_nbclust(X, hcut, method = "wss") + 
     geom_vline(xintercept = 3, linetype = 2)
   
 }
 
+## ---- Average Clusters Silhouette --------------------------------------------
+# The higher the better.
 # Average silhouette
 
 if (FALSE){
@@ -339,7 +445,9 @@ if (FALSE){
 }
 
 
-# Gap statistic
+## ---- Gap statistic ----------------------------------------------------------
+# The higher, the better
+
 set.seed(123)
 # Compute gap statistic for kmeans
 # Recommended B = 500
@@ -351,6 +459,44 @@ fviz_gap_stat(gap_stat)
 # Gap statistic for hierarchical clustering
 gap_stat_hclust <- clusGap(X, FUN = hcut, K.max = 10, B = 10)
 fviz_gap_stat(gap_stat_hclust)
+
+
+
+## ---- Using NbClust(): 30 indices for choosing the bet number of clusters ----
+# data: matrix
+# diss: dissimilarity matrix to be used. Default, diss = NULL
+# distance: the distance measure to be used to compute the dissimilarity matrix
+# e.g. "euclidean", "manhattan", "NULL"
+# min.nc, max.nc: mininal and maximal number of clusters, respectively.
+# method: the cluster analysis method to be used,
+# including "ward.D", "ward.D2", "single", "complete", "average", "kmeans", etc
+
+# NbClust() directly returns the optimal number of clustering based on the 
+# frequency distribution histogram.
+
+res.nbclust <- NbClust(X, distance = "euclidean",
+                       min.nc = 2, 
+                       max.nc = 10,
+                       method = "kmeans",
+                       index = "all")
+
+# The Hubert index is a graphical method of determining the number of clusters.
+# In the plot of the Hubert index, we seek a significant knee that corresponds 
+# to a significant increase of the value of the measure, i.e. the 
+# significant peak in Hubert index second differences plot.
+
+# The D index is a graphical method of determining the number of clusters. 
+# In the plot of the D index, we seek a  significant knee (the significant
+# peak in D-index second differences plot) that corresponds to a 
+# significant increase of the value of the measure. 
+
+# Visualise the optimal number of clusters distribution
+idx <- seq(from = 1, to = 52, by = 2)
+
+cluster_number <- res.nbclust[["Best.nc"]][idx]
+
+#ftable <- data.frame(matrix(, nrow = ))
+
 
 
 ## ---- K-means ----------------------------------------------------------------
@@ -379,10 +525,6 @@ fviz_gap_stat(gap_stat_hclust)
 
 ## INTERNET 
 # - https://www.datanovia.com/en/lessons/k-means-clustering-in-r-algorith-and-practical-examples/
-
-
-install.packages("factoextra")
-library(factoextra)
 
 # Compute k-means with k = 5
 set.seed(123)
@@ -419,7 +561,7 @@ km.res$size
 km.res$centers
 
 
-# visualisation
+# Visualisation
 # Reduce dimensions by PCA and plot data according to the first 
 # two principal component coordinates.
 
@@ -491,7 +633,12 @@ if (FALSE) {
 }
 
 
+
 ## ---- Silhouette Width -------------------------------------------------------
+
+
+
+
 
 ## ---- the Davies-Bouldin index -----------------------------------------------
 
@@ -521,7 +668,6 @@ summary(mod1, parameters = TRUE)
 ## ---- mclust ICL -------------------------------------------------------------
 ICL <- mclustICL(X)
 summary(ICL)
-
 
 
 
