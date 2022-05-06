@@ -380,9 +380,9 @@ library(factoextra)
 
 X <- filtered_hv_data
 
+## ---- TASK 4 ----------------------------------------------------------------- 
 
-
-## ---- Within Cluster Scatter -------------------------------------------------
+## ---- Within Cluster Scatter -----------------------------------------------
 
 # Note that I start by assuming that we should expect 5 clusters (for each 
 # cancer type) - however, this is not necessarily true ig
@@ -670,7 +670,7 @@ ICL <- mclustICL(X)
 summary(ICL)
 
 
-
+## ---- Some other
 
 
 
