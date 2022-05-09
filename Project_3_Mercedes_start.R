@@ -98,6 +98,15 @@ loops <- 10
 
 mean.squared.error <- matrix(0, nrow =12, ncol = 2*loops)
 
+beta_est <- matrix(0,nrow = p+1, ncol = 2*loops*12)
+
+# Something to note is that I don't think true beta contains intercept
+# whilst beta_est (the estimated beta) does
+
+
+
+beta_true <- matrix(0, nrow = p, ncol = 120)
+
 for (l in 1:loops) {
   
   for (i in 1:3) {
@@ -117,6 +126,9 @@ for (l in 1:loops) {
       # 2. Determine hyperparameters
       
       attach(return)
+    
+      
+      
       
       
       # Define MSE function (from: https://stackoverflow.com/questions/39482436/why-calculating-mse-in-lasso-regression-gives-different-outputs)
@@ -153,6 +165,10 @@ for (l in 1:loops) {
                                alpha =1
       )
       
+      
+      
+      
+      
       lasso.lambda <- probs.lasso$lambda.min
       
       id.lambda.min <- which(probs.lasso$lambda == probs.lasso$lambda.min)
@@ -174,23 +190,44 @@ for (l in 1:loops) {
       
       cat("MSE (method 2):", MSE.2, "\n")
       
-      if (i == 1) {
+      if (i == 1 || i == 3) {
+        
         mean.squared.error[i*i+j-1,l] <-  MSE.1
         mean.squared.error[i*i+j-1,l+10] <- MSE.2
+        
+        
+        beta_true[,i*i+(j-1)+12*(l-1)] <- as.vector(return$beta)
+        
+        beta_est[,i*i+(j-1)+12*(l-1)] <- as.vector(coef(probs.lasso, s = "lambda.min"))
+        
+        beta_est[,i*i+(j-1)+12*(l-1)+120] <- as.vector(coef(probs.lasso, s = "lambda.1se"))
         
       } else if (i == 2) {
         
         mean.squared.error[i*i+j,l] <-  MSE.1
         mean.squared.error[i*i+j,l+10] <- MSE.2
         
+        beta_true[,i*i+(j)+12*(l-1)] <- as.vector(return$beta)
         
-      } else if (i == 3) {
         
-        mean.squared.error[i*i+j-1,l] <-  MSE.1
-        mean.squared.error[i*i+j-1,l+10] <- MSE.2
+        beta_est[,i*i+(j)+12*(l-1)] <- as.vector(coef(probs.lasso, s = "lambda.min"))
         
+        beta_est[,i*i+(j)+12*(l-1)+120] <- as.vector(coef(probs.lasso, s = "lambda.1se"))
         
       }
+        
+      # } else if (i == 3) {
+      #   
+      #   mean.squared.error[i*i+j-1,l] <-  MSE.1
+      #   mean.squared.error[i*i+j-1,l+10] <- MSE.2
+      #   
+      #   beta_true[,i*i+(j-1)+12*(l-1)] <- return$beta
+      #   
+      #   beta_est[,i*i+(j-1)+12*(l-1)] <- as.vector(coef(probs.lasso, s = "lambda.min"))
+      #   
+      #   beta_est[,i*i+(j-1)+12*(l-1)+120] <- as.vector(coef(probs.lasso, s = "lambda.1se"))
+      #   
+     #  }
       
     }
     
@@ -252,7 +289,74 @@ ggplot(df_1se, aes(x = c(1:12), y=Mean)) + geom_point() +
   geom_errorbar(aes(ymin=Mean-sd, ymax=Mean+sd), width=.2)
 
 
+## ---- Feature selection ------------------------------------------------------
+
+
+# Make your coeff matrices binary
+
+
+ make.01 <- function(v, param, loop){
+   
+   x_01 <- matrix(2, nrow = param+1, ncol = 2*loop*12)
+   
+   for (i in 1:(param+1)) {
+     for (j in 1:(2*loop*12)) {
+       
+       if (round(v[i,j],2) != 0) # < 0 || beta_est[i,j] > 0){
+       {
+         x_01[i,j]  <- 1
+         
+       } else if (round(v[i,j],2) == 0){
+         x_01[i,j]  <- 0
+       }
+     }
+   }
+ return <- x_01
+}
+
+beta_01_est <- make.01(beta_est, p, loops )
+
+beta_01_true <- make.01(beta_true, p-1, loops/2)
+
+
+prop.1.est <- apply(beta_01_est[-1,], 1, mean)
+
+prop.1.true <- apply(beta_01_true, 1, mean)
+
+
+par(mfrow = c(1,2))
+
+plot(prop.1.est)
+
+plot(prop.1.true)
+
+# seems like there are barely any features being selected 1/5 of times...
+# probably something is not correct
+
+
 ## ---- OLD STUFF --------------------------------------------------------------
+
+
+#xx <- matrix(c(1.5,0,-2,0),c(3,0,2,-2), nrow = 10+1, ncol = 2*4*12)
+
+# beta_01_est <- matrix(2, nrow = p+1, ncol = 2*loops*12)
+# 
+# for (i in 1:p+1) {
+#   for (j in 1:2*loops*12) {
+#     
+#     if (round(beta_est[i,j],2) != 0.00) # < 0 || beta_est[i,j] > 0){
+# {
+#       beta_01_est[i,j]  <- 1
+# 
+#     } else if (round(beta_est[i,j],2) == 0.00){
+#       beta_01_est[i,j]  <- 0
+# }
+#   }
+# }
+
+
+
+
 
 #par(mfrow = c(1,2))
 
@@ -302,19 +406,26 @@ ggplot(df_1se, aes(x = c(1:12), y=Mean)) + geom_point() +
 # 
 # 
 # 
-# 
-# 
-# 
-# cv.fit.lasso.train <- cv.glmnet(X.train,y.train, 
-#                           nfolds = 10,
-#                           alpha = 1
-#                           )
-# 
-# plot(cv.fit.lasso.train)
-# 
-# # Built-in tool to get lambda_min + coeff 
-# 
-# cv.fit.lasso.train$lambda.min
+# # 
+#  TEST <- matrix(0, nrow = p+1, ncol = 2)
+# # 
+#  cv.fit.lasso.train <- cv.glmnet(X.train,y.train, 
+#                            nfolds = 10,
+#                            alpha = 1
+#                            )
+# # 
+# # plot(cv.fit.lasso.train)
+# # 
+# # # Built-in tool to get lambda_min + coeff 
+# # 
+#  TEST[,1] <- as.vector(coef(cv.fit.lasso.train, s = "lambda.min"))
+#  TEST[,2] <- as.vector(coef(cv.fit.lasso.train, s = "lambda.1se"))
+
+   
+   
+   
+   
+   #cv.fit.lasso.train$lambda.min
 # 
 # coef(cv.fit.lasso.train, s = "lambda.min")
 # 
