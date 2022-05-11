@@ -139,7 +139,8 @@ M  = 3
 
 
 
-boot.data <- matrix(0, nrow = 200, ncol = 801)
+boot.data.X <- matrix(0, nrow = 801, ncol = 200)
+boot.lab.y <- matrix(0, nrow = 801, ncol = 1)
 
 # Record how often each feature got selected for each class across bootstrap samples. 
 # You will essentially get a histogram where larger peaks indicate that a feature was chosen more often.
@@ -152,20 +153,27 @@ labels.KIRC <- matrix(0, nrow = 100, ncol = M)
 labels.PRAD <- matrix(0, nrow = 100, ncol = M)
 labels.COAD <- matrix(0, nrow = 100, ncol = M)
 
+
 # Loop to create M bootstrap models
 for ( i in 1:M) {
   
   # The bootstrapped data (replace = T is important!)
-  boot.data <- data.filtered[,sample(ncol(data.filtered), size = 200, replace = TRUE)]
+  #boot.data <- data.filtered[,sample(ncol(data.filtered), size = 200, replace = TRUE)]
   
- 
+  # Row id for bootstrapping
+  id <- sample(801, size = 801, replace = T)
+  
+  # Bootstrapped data and labels
+  boot.data.X <- data.filtered[id,]
+  boot.lab.y <- lab[id,]
+  
   # Create model for bootstrapped data
   mod <- glmnet(
-    x = boot.data, y = lab,
+    x = boot.data.X, y = boot.lab.y,
     family = "multinomial")
   
   # Cross-validate bootstrapped data
-  cv.mod <- cv.glmnet(boot.data, lab, family = "multinomial")
+  cv.mod <- cv.glmnet(boot.data.X, boot.lab.y, family = "multinomial")
   
   
   # Extract the coef for each class
