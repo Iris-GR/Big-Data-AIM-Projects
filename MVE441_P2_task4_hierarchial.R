@@ -43,16 +43,17 @@ df_filtered_PCA = as.data.frame(df_filtered.pca$x[,1:10])
 
 #Distance matrix
 distance_mat = dist(df_filtered_PCA, method = "euclidean")
+#NOTE! Kanske ska vara squared?? <-------------------------------------???
 
 #Fit hierarchial clustering model to data
-Hierar_cl <- hclust(distance_mat, method = "average")
+Hierar_cl <- hclust(distance_mat, method = "single")
 
 #Plot dendogram
 plot(Hierar_cl)
 
 
 #Number of clusters
-K = 6
+K = 5
 
 # Cutting tree by K number of clusters
 fit <- cutree(Hierar_cl, k = K)
