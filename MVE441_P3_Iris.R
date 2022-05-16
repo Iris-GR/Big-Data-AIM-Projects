@@ -391,8 +391,8 @@ ggplot(BRCA.sel.nz.dev.1se) +
            fill = "skyblue", 
            alpha = 0.7) +
   geom_errorbar(aes(x = name, 
-                    ymin = sel.stab - sel.sd, 
-                    ymax = sel.stab + sel.sd), 
+                    ymin = sel.stab - sel.sd/sqrt(M), 
+                    ymax = sel.stab + sel.sd/sqrt(M)), 
                 width = 0.4, 
                 colour = "orange", 
                 alpha = 0.9, 
@@ -417,8 +417,8 @@ ggplot(COAD.sel.nz.dev.1se) +
            fill = "skyblue", 
            alpha = 0.7) +
   geom_errorbar(aes(x = name, 
-                    ymin = sel.stab - sel.sd, 
-                    ymax = sel.stab + sel.sd), 
+                    ymin = sel.stab - sel.sd/sqrt(M), 
+                    ymax = sel.stab + sel.sd/sqrt(M)), 
                 width = 0.4, 
                 colour = "orange", 
                 alpha = 0.9, 
@@ -443,8 +443,8 @@ ggplot(KIRC.sel.nz.dev.1se) +
            fill = "skyblue", 
            alpha = 0.7) +
   geom_errorbar(aes(x = name, 
-                    ymin = sel.stab - sel.sd, 
-                    ymax = sel.stab + sel.sd), 
+                    ymin = sel.stab - sel.sd/sqrt(M), 
+                    ymax = sel.stab + sel.sd/sqrt(M)), 
                 width = 0.4, 
                 colour = "orange", 
                 alpha = 0.9, 
@@ -469,8 +469,8 @@ ggplot(LUAD.sel.nz.dev.1se) +
            fill = "skyblue", 
            alpha = 0.7) +
   geom_errorbar(aes(x = name, 
-                    ymin = sel.stab - sel.sd, 
-                    ymax = sel.stab + sel.sd), 
+                    ymin = sel.stab - sel.sd/sqrt(M), 
+                    ymax = sel.stab + sel.sd/sqrt(M)), 
                 width = 0.4, 
                 colour = "orange", 
                 alpha = 0.9, 
@@ -495,8 +495,8 @@ ggplot(PRAD.sel.nz.dev.1se) +
            fill = "skyblue", 
            alpha = 0.7) +
   geom_errorbar(aes(x = name, 
-                    ymin = sel.stab - sel.sd, 
-                    ymax = sel.stab + sel.sd), 
+                    ymin = sel.stab - sel.sd/sqrt(M), 
+                    ymax = sel.stab + sel.sd/sqrt(M)), 
                 width = 0.4, 
                 colour = "orange", 
                 alpha = 0.9, 
@@ -531,304 +531,6 @@ top.mult.feat.sel.dev.1se <- c(BRCA.sel.nz.dev.1se$name[2:6],
                                LUAD.sel.nz.dev.1se$name[2:6],
                                PRAD.sel.nz.dev.1se$name[2:6])
 top.mult.feat.sel.dev.1se[duplicated(top.mult.feat.sel.dev.1se)] 
-
-
-
-
-
-# Task 3 mse measure and lambda.1se --------------------------------------
-# Make an empty list with five classes where each class has 200 + 1 long vectors
-sel.freq.mse.1se <- as.data.frame(matrix(0, 
-                                         nrow = 201,
-                                         ncol = 5))
-
-# Add gene names as row names and the classes as column names
-rownames(sel.freq.mse.1se) <- c("(Intercept)",colnames(X.filtered))
-colnames(sel.freq.mse.1se) <- c("BRCA.sel.freq",
-                                "COAD.sel.freq",
-                                "KIRC.sel.freq",
-                                "LUAD.sel.freq",
-                                "PRAD.sel.freq")
-
-print(sel.freq.mse.1se)
-
-# Convert the filtered datamatrix to data.matrix format
-dat.mat.filt <- data.matrix(X.filtered)
-
-#* Boot strap ----------------------------------------------------------------
-# Number of repeated bootstraps 
-M = 200
-
-# For each bootstrap
-for (j in 1:M) {
-  set.seed(j)
-  
-  # Take a sample with replacement from the filtered data matrix and the same
-  # from the labels vector
-  boot.rows <- sample(1:nrow(dat.mat.filt), nrow(dat.mat.filt), replace = TRUE)
-  X.filtered.boot <- dat.mat.filt[boot.rows,]
-  y.boot <- y[boot.rows]
-  
-  # 10-fold CV of multiclass multinomial logistic, for mse measure
-  cv.boot.dev <- cv.glmnet(X.filtered.boot,
-                           y.boot,
-                           family = "multinomial", 
-                           type.measure = "mse",
-                           alpha = 1, 
-                           type.multinomial = "ungrouped")
-  
-  # Extract the freature coefficients for lambda within a std of the min
-  pred.coef.se <- predict(cv.boot.dev, newx = X.filtered.boot,
-                          s = "lambda.1se",
-                          type = "coef")
-  
-  # Count frequency of features that were selected
-  for (i in 1:length(pred.coef.se$BRCA)) {
-    if(pred.coef.se$BRCA[i] != 0) {
-      sel.freq.mse.1se$BRCA.sel.freq[i] = sel.freq.mse.1se$BRCA.sel.freq[i] + 1}
-    
-    if(pred.coef.se$COAD[i] != 0) {
-      sel.freq.mse.1se$COAD.sel.freq[i] = sel.freq.mse.1se$COAD.sel.freq[i] + 1}
-    
-    if(pred.coef.se$KIRC[i] != 0) {
-      sel.freq.mse.1se$KIRC.sel.freq[i] = sel.freq.mse.1se$KIRC.sel.freq[i] + 1}
-    
-    if(pred.coef.se$LUAD[i] != 0) {
-      sel.freq.mse.1se$LUAD.sel.freq[i] = sel.freq.mse.1se$LUAD.sel.freq[i] + 1}
-    
-    if(pred.coef.se$PRAD[i] != 0) {
-      sel.freq.mse.1se$PRAD.sel.freq[i] = sel.freq.mse.1se$PRAD.sel.freq[i] + 1}
-  }
-  
-}
-
-sel.freq.mse.1se
-
-#* Prep of class data frames -------------------------------------------------
-
-# Calculate the standard mseiation of the frequency of selection for each class
-sel.sd.mse.1se <- as.data.frame(matrix(NA, 
-                                       nrow = length(sel.freq.mse.1se[,1]),
-                                       ncol = length(sel.freq.mse.1se[1,]),
-                                       dimnames = list(rownames(sel.freq.mse.1se),
-                                                       c("BRCA.sel.sd", 
-                                                         "COAD.sel.sd", 
-                                                         "KIRC.sel.sd", 
-                                                         "LUAD.sel.sd", 
-                                                         "PRAD.sel.sd"))))
-
-for (i in 1:length(sel.sd.mse.1se[,1])) {
-  for (j in 1:length(sel.sd.mse.1se[1,])){
-    sel.sd.mse.1se[i,j] <- sd(c(rep(0, M-sel.freq.mse.1se[i,j]), rep(1,sel.freq.mse.1se[i,j])))
-  }
-}
-
-# Gather the coefficient name, selection frequency, stability and standard 
-# mseiation in one data frame
-BRCA.sel.mse.1se <- data.frame(name = rownames(sel.freq.mse.1se),
-                               sel.freq = sel.freq.mse.1se$BRCA.sel.freq,
-                               sel.stab = sel.freq.mse.1se$BRCA.sel.freq/M,
-                               sel.sd = sel.sd.mse.1se$BRCA.sel.sd)
-COAD.sel.mse.1se <- data.frame(name = rownames(sel.freq.mse.1se),
-                               sel.freq = sel.freq.mse.1se$COAD.sel.freq,
-                               sel.stab = sel.freq.mse.1se$COAD.sel.freq/M,
-                               sel.sd = sel.sd.mse.1se$COAD.sel.sd)
-KIRC.sel.mse.1se <- data.frame(name = rownames(sel.freq.mse.1se),
-                               sel.freq = sel.freq.mse.1se$KIRC.sel.freq,
-                               sel.stab = sel.freq.mse.1se$KIRC.sel.freq/M,
-                               sel.sd = sel.sd.mse.1se$KIRC.sel.sd)
-LUAD.sel.mse.1se <- data.frame(name = rownames(sel.freq.mse.1se),
-                               sel.freq = sel.freq.mse.1se$LUAD.sel.freq,
-                               sel.stab = sel.freq.mse.1se$LUAD.sel.freq/M,
-                               sel.sd = sel.sd.mse.1se$LUAD.sel.sd)
-PRAD.sel.mse.1se <- data.frame(name = rownames(sel.freq.mse.1se),
-                               sel.freq = sel.freq.mse.1se$PRAD.sel.freq,
-                               sel.stab = sel.freq.mse.1se$PRAD.sel.freq/M,
-                               sel.sd = sel.sd.mse.1se$PRAD.sel.sd)
-
-# Order after decreasing coefficient selection frequency
-BRCA.sel.mse.1se <- BRCA.sel.mse.1se[order(BRCA.sel.mse.1se$sel.freq,
-                                           decreasing = TRUE), ]
-COAD.sel.mse.1se <- COAD.sel.mse.1se[order(COAD.sel.mse.1se$sel.freq,
-                                           decreasing = TRUE), ]
-KIRC.sel.mse.1se <- KIRC.sel.mse.1se[order(KIRC.sel.mse.1se$sel.freq,
-                                           decreasing = TRUE), ]
-LUAD.sel.mse.1se <- LUAD.sel.mse.1se[order(LUAD.sel.mse.1se$sel.freq,
-                                           decreasing = TRUE), ]
-PRAD.sel.mse.1se <- PRAD.sel.mse.1se[order(PRAD.sel.mse.1se$sel.freq,
-                                           decreasing = TRUE), ]
-
-# Select rows with non-zero selection frequency
-BRCA.sel.nz.mse.1se <- subset(BRCA.sel.mse.1se, BRCA.sel.mse.1se$sel.freq > 0)
-COAD.sel.nz.mse.1se <- subset(COAD.sel.mse.1se, COAD.sel.mse.1se$sel.freq > 0)
-KIRC.sel.nz.mse.1se <- subset(KIRC.sel.mse.1se, KIRC.sel.mse.1se$sel.freq > 0)
-LUAD.sel.nz.mse.1se <- subset(LUAD.sel.mse.1se, LUAD.sel.mse.1se$sel.freq > 0)
-PRAD.sel.nz.mse.1se <- subset(PRAD.sel.mse.1se, PRAD.sel.mse.1se$sel.freq > 0)
-
-# For ordering of bars in plot, set the gene names as factors
-BRCA.sel.nz.mse.1se$name <- factor(BRCA.sel.nz.mse.1se$name, 
-                                   levels = BRCA.sel.nz.mse.1se$name)
-COAD.sel.nz.mse.1se$name <- factor(COAD.sel.nz.mse.1se$name, 
-                                   levels = COAD.sel.nz.mse.1se$name)
-KIRC.sel.nz.mse.1se$name <- factor(KIRC.sel.nz.mse.1se$name, 
-                                   levels = KIRC.sel.nz.mse.1se$name)
-LUAD.sel.nz.mse.1se$name <- factor(LUAD.sel.nz.mse.1se$name, 
-                                   levels = LUAD.sel.nz.mse.1se$name)
-PRAD.sel.nz.mse.1se$name <- factor(PRAD.sel.nz.mse.1se$name, 
-                                   levels = PRAD.sel.nz.mse.1se$name)
-
-#* Plot stability of non-zero coefficients -----------------------------------
-# BRCA
-ggplot(BRCA.sel.nz.mse.1se) +
-  geom_bar(aes(x = name, 
-               y = sel.stab),
-           stat = "identity", 
-           fill = "skyblue", 
-           alpha = 0.7) +
-  geom_errorbar(aes(x = name, 
-                    ymin = sel.stab - sel.sd, 
-                    ymax = sel.stab + sel.sd), 
-                width = 0.4, 
-                colour = "orange", 
-                alpha = 0.9, 
-                size = 1) +
-  theme(axis.text.x = element_text(angle=45, vjust=1, hjust=1))+
-  labs(title = "Feature Selection Stability, Class: BRCA",
-       subtitle = paste0("(CV measure: MSE, Lambda type: 1se, Nr. bootstrap: ",
-                         M, ")"),
-       x = NULL, 
-       y = "Stability") +
-  theme(axis.text = element_text(size = 15),
-        axis.title = element_text(size = 20),
-        plot.subtitle = element_text(size = 15),
-        plot.title = element_text(size = 20)) +
-  scale_y_continuous(breaks = seq(0, 1.2, by = 0.2))
-
-# COAD
-ggplot(COAD.sel.nz.mse.1se) +
-  geom_bar(aes(x = name, 
-               y = sel.stab),
-           stat = "identity", 
-           fill = "skyblue", 
-           alpha = 0.7) +
-  geom_errorbar(aes(x = name, 
-                    ymin = sel.stab - sel.sd, 
-                    ymax = sel.stab + sel.sd), 
-                width = 0.4, 
-                colour = "orange", 
-                alpha = 0.9, 
-                size = 1) +
-  theme(axis.text.x = element_text(angle=45, vjust=1, hjust=1))+
-  labs(title = "Feature Selection Stability, Class: COAD",
-       subtitle = paste0("(CV measure: MSE, Lambda type: 1se, Nr. bootstrap: ",
-                         M, ")"),
-       x = NULL, 
-       y = "Stability") +
-  theme(axis.text = element_text(size = 15),
-        axis.title = element_text(size = 20),
-        plot.subtitle = element_text(size = 15),
-        plot.title = element_text(size = 20)) +
-  scale_y_continuous(breaks = seq(0, 1.2, by = 0.2))
-
-# KIRC
-ggplot(KIRC.sel.nz.mse.1se) +
-  geom_bar(aes(x = name, 
-               y = sel.stab),
-           stat = "identity", 
-           fill = "skyblue", 
-           alpha = 0.7) +
-  geom_errorbar(aes(x = name, 
-                    ymin = sel.stab - sel.sd, 
-                    ymax = sel.stab + sel.sd), 
-                width = 0.4, 
-                colour = "orange", 
-                alpha = 0.9, 
-                size = 1) +
-  theme(axis.text.x = element_text(angle=45, vjust=1, hjust=1))+
-  labs(title = "Feature Selection Stability, Class: KIRC",
-       subtitle = paste0("(CV measure: MSE, Lambda type: 1se, Nr. bootstrap: ",
-                         M, ")"),
-       x = NULL, 
-       y = "Stability") +
-  theme(axis.text = element_text(size = 12),
-        axis.title = element_text(size = 20),
-        plot.subtitle = element_text(size = 15),
-        plot.title = element_text(size = 20)) +
-  scale_y_continuous(breaks = seq(0, 1.2, by = 0.2))
-
-# LUAD
-ggplot(LUAD.sel.nz.mse.1se) +
-  geom_bar(aes(x = name, 
-               y = sel.stab),
-           stat = "identity", 
-           fill = "skyblue", 
-           alpha = 0.7) +
-  geom_errorbar(aes(x = name, 
-                    ymin = sel.stab - sel.sd, 
-                    ymax = sel.stab + sel.sd), 
-                width = 0.4, 
-                colour = "orange", 
-                alpha = 0.9, 
-                size = 1) +
-  theme(axis.text.x = element_text(angle=45, vjust=1, hjust=1))+
-  labs(title = "Feature Selection Stability, Class: LUAD",
-       subtitle = paste0("(CV measure: MSE, Lambda type: 1se, Nr. bootstrap: ",
-                         M, ")"),
-       x = NULL, 
-       y = "Stability") +
-  theme(axis.text = element_text(size = 15),
-        axis.title = element_text(size = 20),
-        plot.subtitle = element_text(size = 15),
-        plot.title = element_text(size = 20)) +
-  scale_y_continuous(breaks = seq(0, 1.2, by = 0.2))
-
-# PRAD
-ggplot(PRAD.sel.nz.mse.1se) +
-  geom_bar(aes(x = name, 
-               y = sel.stab),
-           stat = "identity", 
-           fill = "skyblue", 
-           alpha = 0.7) +
-  geom_errorbar(aes(x = name, 
-                    ymin = sel.stab - sel.sd, 
-                    ymax = sel.stab + sel.sd), 
-                width = 0.4, 
-                colour = "orange", 
-                alpha = 0.9, 
-                size = 1) +
-  theme(axis.text.x = element_text(angle=45, vjust=1, hjust=1))+
-  labs(title = "Feature Selection Stability, Class: PRAD",
-       subtitle = paste0("(CV measure: MSE, Lambda type: 1se, Nr. bootstrap: ",
-                         M, ")"),
-       x = NULL, 
-       y = "Stability") +
-  theme(axis.text = element_text(size = 15),
-        axis.title = element_text(size = 20),
-        plot.subtitle = element_text(size = 15),
-        plot.title = element_text(size = 20)) +
-  scale_y_continuous(breaks = seq(0, 1.2, by = 0.2))
-
-#* Same feature selected in multiple classes? ----------------------------------
-
-# Class simultaneous selection of features for all non-zero features
-mult.feat.sel.mse.1se <- c(BRCA.sel.nz.mse.1se$name,
-                           COAD.sel.nz.mse.1se$name,
-                           KIRC.sel.nz.mse.1se$name,
-                           LUAD.sel.nz.mse.1se$name,
-                           PRAD.sel.nz.mse.1se$name)
-mult.feat.sel.mse.1se[duplicated(mult.feat.sel.mse.1se)]
-
-# Class simultaneous selection of features for top 5 stable features per class
-# (Don't include the intercept)
-top.mult.feat.sel.mse.1se <- c(BRCA.sel.nz.mse.1se$name[2:6],
-                               COAD.sel.nz.mse.1se$name[2:6],
-                               KIRC.sel.nz.mse.1se$name[2:6],
-                               LUAD.sel.nz.mse.1se$name[2:6],
-                               PRAD.sel.nz.mse.1se$name[2:6])
-top.mult.feat.sel.mse.1se[duplicated(top.mult.feat.sel.mse.1se)] 
-
-
-
 
 
 # Task 3 Deviance measure and lambda.min --------------------------------------
@@ -982,8 +684,8 @@ ggplot(BRCA.sel.nz.dev.min) +
            fill = "skyblue", 
            alpha = 0.7) +
   geom_errorbar(aes(x = name, 
-                    ymin = sel.stab - sel.sd, 
-                    ymax = sel.stab + sel.sd), 
+                    ymin = sel.stab - sel.sd/sqrt(M), 
+                    ymax = sel.stab + sel.sd/sqrt(M)), 
                 width = 0.4, 
                 colour = "orange", 
                 alpha = 0.9, 
@@ -1008,8 +710,8 @@ ggplot(COAD.sel.nz.dev.min) +
            fill = "skyblue", 
            alpha = 0.7) +
   geom_errorbar(aes(x = name, 
-                    ymin = sel.stab - sel.sd, 
-                    ymax = sel.stab + sel.sd), 
+                    ymin = sel.stab - sel.sd/sqrt(M), 
+                    ymax = sel.stab + sel.sd/sqrt(M)), 
                 width = 0.4, 
                 colour = "orange", 
                 alpha = 0.9, 
@@ -1034,8 +736,8 @@ ggplot(KIRC.sel.nz.dev.min) +
            fill = "skyblue", 
            alpha = 0.7) +
   geom_errorbar(aes(x = name, 
-                    ymin = sel.stab - sel.sd, 
-                    ymax = sel.stab + sel.sd), 
+                    ymin = sel.stab - sel.sd/sqrt(M), 
+                    ymax = sel.stab + sel.sd/sqrt(M)), 
                 width = 0.4, 
                 colour = "orange", 
                 alpha = 0.9, 
@@ -1060,8 +762,8 @@ ggplot(LUAD.sel.nz.dev.min) +
            fill = "skyblue", 
            alpha = 0.7) +
   geom_errorbar(aes(x = name, 
-                    ymin = sel.stab - sel.sd, 
-                    ymax = sel.stab + sel.sd), 
+                    ymin = sel.stab - sel.sd/sqrt(M), 
+                    ymax = sel.stab + sel.sd/sqrt(M)), 
                 width = 0.4, 
                 colour = "orange", 
                 alpha = 0.9, 
@@ -1086,8 +788,8 @@ ggplot(PRAD.sel.nz.dev.min) +
            fill = "skyblue", 
            alpha = 0.7) +
   geom_errorbar(aes(x = name, 
-                    ymin = sel.stab - sel.sd, 
-                    ymax = sel.stab + sel.sd), 
+                    ymin = sel.stab - sel.sd/sqrt(M), 
+                    ymax = sel.stab + sel.sd/sqrt(M)), 
                 width = 0.4, 
                 colour = "orange", 
                 alpha = 0.9, 
@@ -1122,328 +824,4 @@ top.mult.feat.sel.dev.min <- c(BRCA.sel.nz.dev.min$name[2:6],
                                LUAD.sel.nz.dev.min$name[2:6],
                                PRAD.sel.nz.dev.min$name[2:6])
 top.mult.feat.sel.dev.min[duplicated(top.mult.feat.sel.dev.min)] 
-
-
-
-
-# Task 3 mse measure and lambda.min --------------------------------------
-# Make an empty list with five classes where each class has 200 + 1 long vectors
-sel.freq.mse.min <- as.data.frame(matrix(0, 
-                                         nrow = 201,
-                                         ncol = 5))
-
-# Add gene names as row names and the classes as column names
-rownames(sel.freq.mse.min) <- c("(Intercept)",colnames(X.filtered))
-colnames(sel.freq.mse.min) <- c("BRCA.sel.freq",
-                                "COAD.sel.freq",
-                                "KIRC.sel.freq",
-                                "LUAD.sel.freq",
-                                "PRAD.sel.freq")
-
-print(sel.freq.mse.min)
-
-# Convert the filtered datamatrix to data.matrix format
-dat.mat.filt <- data.matrix(X.filtered)
-
-#* Boot strap ------------------------------------------------------------------
-
-# Number of repeated bootstraps 
-M = 200
-
-# For each bootstrap
-for (j in 1:M) {
-  set.seed(j)
-  
-  # Take a sample with replacement from the filtered data matrix and the same
-  # from the labels vector
-  boot.rows <- sample(1:nrow(dat.mat.filt), nrow(dat.mat.filt), replace = TRUE)
-  X.filtered.boot <- dat.mat.filt[boot.rows,]
-  y.boot <- y[boot.rows]
-  
-  # 10-fold CV of multiclass multinomial logistic, for mse measure
-  cv.boot.dev <- cv.glmnet(X.filtered.boot,
-                           y.boot,
-                           family = "multinomial", 
-                           type.measure = "mse",
-                           alpha = 1, 
-                           type.multinomial = "ungrouped")
-  
-  # Extract the freature coefficients for minimum lambda
-  pred.coef.se <- predict(cv.boot.dev, newx = X.filtered.boot,
-                          s = "lambda.min",
-                          type = "coef")
-  
-  # Count frequency of features that were selected
-  for (i in 1:length(pred.coef.se$BRCA)) {
-    if(pred.coef.se$BRCA[i] != 0) {
-      sel.freq.mse.min$BRCA.sel.freq[i] = sel.freq.mse.min$BRCA.sel.freq[i] + 1}
-    
-    if(pred.coef.se$COAD[i] != 0) {
-      sel.freq.mse.min$COAD.sel.freq[i] = sel.freq.mse.min$COAD.sel.freq[i] + 1}
-    
-    if(pred.coef.se$KIRC[i] != 0) {
-      sel.freq.mse.min$KIRC.sel.freq[i] = sel.freq.mse.min$KIRC.sel.freq[i] + 1}
-    
-    if(pred.coef.se$LUAD[i] != 0) {
-      sel.freq.mse.min$LUAD.sel.freq[i] = sel.freq.mse.min$LUAD.sel.freq[i] + 1}
-    
-    if(pred.coef.se$PRAD[i] != 0) {
-      sel.freq.mse.min$PRAD.sel.freq[i] = sel.freq.mse.min$PRAD.sel.freq[i] + 1}
-  }
-  
-}
-
-sel.freq.mse.min
-
-#* Prep of class data frames -------------------------------------------------
-
-# Calculate the standard mseiation of the frequency of selection for each class
-sel.sd.mse.min <- as.data.frame(matrix(NA, 
-                                       nrow = length(sel.freq.mse.min[,1]),
-                                       ncol = length(sel.freq.mse.min[1,]),
-                                       dimnames = list(rownames(sel.freq.mse.min),
-                                                       c("BRCA.sel.sd", 
-                                                         "COAD.sel.sd", 
-                                                         "KIRC.sel.sd", 
-                                                         "LUAD.sel.sd", 
-                                                         "PRAD.sel.sd"))))
-
-for (i in 1:length(sel.sd.mse.min[,1])) {
-  for (j in 1:length(sel.sd.mse.min[1,])){
-    sel.sd.mse.min[i,j] <- sd(c(rep(0, M-sel.freq.mse.min[i,j]), rep(1,sel.freq.mse.min[i,j])))
-  }
-}
-
-# Gather the coefficient name, selection frequency, stability and standard 
-# mseiation in one data frame
-BRCA.sel.mse.min <- data.frame(name = rownames(sel.freq.mse.min),
-                               sel.freq = sel.freq.mse.min$BRCA.sel.freq,
-                               sel.stab = sel.freq.mse.min$BRCA.sel.freq/M,
-                               sel.sd = sel.sd.mse.min$BRCA.sel.sd)
-COAD.sel.mse.min <- data.frame(name = rownames(sel.freq.mse.min),
-                               sel.freq = sel.freq.mse.min$COAD.sel.freq,
-                               sel.stab = sel.freq.mse.min$COAD.sel.freq/M,
-                               sel.sd = sel.sd.mse.min$COAD.sel.sd)
-KIRC.sel.mse.min <- data.frame(name = rownames(sel.freq.mse.min),
-                               sel.freq = sel.freq.mse.min$KIRC.sel.freq,
-                               sel.stab = sel.freq.mse.min$KIRC.sel.freq/M,
-                               sel.sd = sel.sd.mse.min$KIRC.sel.sd)
-LUAD.sel.mse.min <- data.frame(name = rownames(sel.freq.mse.min),
-                               sel.freq = sel.freq.mse.min$LUAD.sel.freq,
-                               sel.stab = sel.freq.mse.min$LUAD.sel.freq/M,
-                               sel.sd = sel.sd.mse.min$LUAD.sel.sd)
-PRAD.sel.mse.min <- data.frame(name = rownames(sel.freq.mse.min),
-                               sel.freq = sel.freq.mse.min$PRAD.sel.freq,
-                               sel.stab = sel.freq.mse.min$PRAD.sel.freq/M,
-                               sel.sd = sel.sd.mse.min$PRAD.sel.sd)
-
-# Order after decreasing coefficient selection frequency
-BRCA.sel.mse.min <- BRCA.sel.mse.min[order(BRCA.sel.mse.min$sel.freq,
-                                           decreasing = TRUE), ]
-COAD.sel.mse.min <- COAD.sel.mse.min[order(COAD.sel.mse.min$sel.freq,
-                                           decreasing = TRUE), ]
-KIRC.sel.mse.min <- KIRC.sel.mse.min[order(KIRC.sel.mse.min$sel.freq,
-                                           decreasing = TRUE), ]
-LUAD.sel.mse.min <- LUAD.sel.mse.min[order(LUAD.sel.mse.min$sel.freq,
-                                           decreasing = TRUE), ]
-PRAD.sel.mse.min <- PRAD.sel.mse.min[order(PRAD.sel.mse.min$sel.freq,
-                                           decreasing = TRUE), ]
-
-# Select rows with non-zero selection frequency
-BRCA.sel.nz.mse.min <- subset(BRCA.sel.mse.min, BRCA.sel.mse.min$sel.freq > 0)
-COAD.sel.nz.mse.min <- subset(COAD.sel.mse.min, COAD.sel.mse.min$sel.freq > 0)
-KIRC.sel.nz.mse.min <- subset(KIRC.sel.mse.min, KIRC.sel.mse.min$sel.freq > 0)
-LUAD.sel.nz.mse.min <- subset(LUAD.sel.mse.min, LUAD.sel.mse.min$sel.freq > 0)
-PRAD.sel.nz.mse.min <- subset(PRAD.sel.mse.min, PRAD.sel.mse.min$sel.freq > 0)
-
-# For ordering of bars in plot, set the gene names as factors
-BRCA.sel.nz.mse.min$name <- factor(BRCA.sel.nz.mse.min$name, 
-                                   levels = BRCA.sel.nz.mse.min$name)
-COAD.sel.nz.mse.min$name <- factor(COAD.sel.nz.mse.min$name, 
-                                   levels = COAD.sel.nz.mse.min$name)
-KIRC.sel.nz.mse.min$name <- factor(KIRC.sel.nz.mse.min$name, 
-                                   levels = KIRC.sel.nz.mse.min$name)
-LUAD.sel.nz.mse.min$name <- factor(LUAD.sel.nz.mse.min$name, 
-                                   levels = LUAD.sel.nz.mse.min$name)
-PRAD.sel.nz.mse.min$name <- factor(PRAD.sel.nz.mse.min$name, 
-                                   levels = PRAD.sel.nz.mse.min$name)
-
-#* Plot stability of non-zero coefficients -----------------------------------
-# BRCA
-ggplot(BRCA.sel.nz.mse.min) +
-  geom_bar(aes(x = name, 
-               y = sel.stab),
-           stat = "identity", 
-           fill = "skyblue", 
-           alpha = 0.7) +
-  geom_errorbar(aes(x = name, 
-                    ymin = sel.stab - sel.sd, 
-                    ymax = sel.stab + sel.sd), 
-                width = 0.4, 
-                colour = "orange", 
-                alpha = 0.9, 
-                size = 1) +
-  theme(axis.text.x = element_text(angle=45, vjust=1, hjust=1))+
-  labs(title = "Feature Selection Stability, Class: BRCA",
-       subtitle = paste0("(CV measure: MSE, Lambda type: min, Nr. bootstrap: ",
-                         M, ")"),
-       x = NULL, 
-       y = "Stability") +
-  theme(axis.text = element_text(size = 15),
-        axis.title = element_text(size = 20),
-        plot.subtitle = element_text(size = 15),
-        plot.title = element_text(size = 20)) +
-  scale_y_continuous(breaks = seq(0, 1.2, by = 0.2))
-
-# COAD
-ggplot(COAD.sel.nz.mse.min) +
-  geom_bar(aes(x = name, 
-               y = sel.stab),
-           stat = "identity", 
-           fill = "skyblue", 
-           alpha = 0.7) +
-  geom_errorbar(aes(x = name, 
-                    ymin = sel.stab - sel.sd, 
-                    ymax = sel.stab + sel.sd), 
-                width = 0.4, 
-                colour = "orange", 
-                alpha = 0.9, 
-                size = 1) +
-  theme(axis.text.x = element_text(angle=45, vjust=1, hjust=1))+
-  labs(title = "Feature Selection Stability, Class: COAD",
-       subtitle = paste0("(CV measure: MSE, Lambda type: min, Nr. bootstrap: ",
-                         M, ")"),
-       x = NULL, 
-       y = "Stability") +
-  theme(axis.text = element_text(size = 15),
-        axis.title = element_text(size = 20),
-        plot.subtitle = element_text(size = 15),
-        plot.title = element_text(size = 20)) +
-  scale_y_continuous(breaks = seq(0, 1.2, by = 0.2))
-
-# KIRC
-ggplot(KIRC.sel.nz.mse.min) +
-  geom_bar(aes(x = name, 
-               y = sel.stab),
-           stat = "identity", 
-           fill = "skyblue", 
-           alpha = 0.7) +
-  geom_errorbar(aes(x = name, 
-                    ymin = sel.stab - sel.sd, 
-                    ymax = sel.stab + sel.sd), 
-                width = 0.4, 
-                colour = "orange", 
-                alpha = 0.9, 
-                size = 1) +
-  theme(axis.text.x = element_text(angle=45, vjust=1, hjust=1))+
-  labs(title = "Feature Selection Stability, Class: KIRC",
-       subtitle = paste0("(CV measure: MSE, Lambda type: min, Nr. bootstrap: ",
-                         M, ")"),
-       x = NULL, 
-       y = "Stability") +
-  theme(axis.text = element_text(size = 12),
-        axis.title = element_text(size = 20),
-        plot.subtitle = element_text(size = 15),
-        plot.title = element_text(size = 20)) +
-  scale_y_continuous(breaks = seq(0, 1.2, by = 0.2))
-
-# LUAD
-ggplot(LUAD.sel.nz.mse.min) +
-  geom_bar(aes(x = name, 
-               y = sel.stab),
-           stat = "identity", 
-           fill = "skyblue", 
-           alpha = 0.7) +
-  geom_errorbar(aes(x = name, 
-                    ymin = sel.stab - sel.sd, 
-                    ymax = sel.stab + sel.sd), 
-                width = 0.4, 
-                colour = "orange", 
-                alpha = 0.9, 
-                size = 1) +
-  theme(axis.text.x = element_text(angle=45, vjust=1, hjust=1))+
-  labs(title = "Feature Selection Stability, Class: LUAD",
-       subtitle = paste0("(CV measure: MSE, Lambda type: min, Nr. bootstrap: ",
-                         M, ")"),
-       x = NULL, 
-       y = "Stability") +
-  theme(axis.text = element_text(size = 12),
-        axis.title = element_text(size = 20),
-        plot.subtitle = element_text(size = 15),
-        plot.title = element_text(size = 20)) +
-  scale_y_continuous(breaks = seq(0, 1.2, by = 0.2))
-
-# PRAD
-ggplot(PRAD.sel.nz.mse.min) +
-  geom_bar(aes(x = name, 
-               y = sel.stab),
-           stat = "identity", 
-           fill = "skyblue", 
-           alpha = 0.7) +
-  geom_errorbar(aes(x = name, 
-                    ymin = sel.stab - sel.sd, 
-                    ymax = sel.stab + sel.sd), 
-                width = 0.4, 
-                colour = "orange", 
-                alpha = 0.9, 
-                size = 1) +
-  theme(axis.text.x = element_text(angle=45, vjust=1, hjust=1))+
-  labs(title = "Feature Selection Stability, Class: PRAD",
-       subtitle = paste0("(CV measure: MSE, Lambda type: min, Nr. bootstrap: ",
-                         M, ")"),
-       x = NULL, 
-       y = "Stability") +
-  theme(axis.text = element_text(size = 15),
-        axis.title = element_text(size = 20),
-        plot.subtitle = element_text(size = 15),
-        plot.title = element_text(size = 20)) +
-  scale_y_continuous(breaks = seq(0, 1.2, by = 0.2))
-
-#* Same feature selected in multiple classes?-----------------------------------
-#* 
-# Class simultaneous selection of features for all non-zero features
-mult.feat.sel.mse.1se <- c(BRCA.sel.nz.mse.1se$name,
-                           COAD.sel.nz.mse.1se$name,
-                           KIRC.sel.nz.mse.1se$name,
-                           LUAD.sel.nz.mse.1se$name,
-                           PRAD.sel.nz.mse.1se$name)
-mult.feat.sel.mse.1se[duplicated(mult.feat.sel.mse.1se)]
-
-# Class simultaneous selection of features for top 5 stable features per class
-# (Don't include the intercept)
-top.mult.feat.sel.mse.1se <- c(BRCA.sel.nz.mse.1se$name[2:6],
-                               COAD.sel.nz.mse.1se$name[2:6],
-                               KIRC.sel.nz.mse.1se$name[2:6],
-                               LUAD.sel.nz.mse.1se$name[2:6],
-                               PRAD.sel.nz.mse.1se$name[2:6])
-top.mult.feat.sel.mse.1se[duplicated(top.mult.feat.sel.mse.1se)] 
-
-# Task 3 summary---------------------------------------------------------------
-
-# Number of non-zero features for each class, measure and lambda type 
-# (minus intercept)
-
-length(BRCA.sel.nz.dev.1se[,1])
-length(COAD.sel.nz.dev.1se[,1])
-length(KIRC.sel.nz.dev.1se[,1])
-length(LUAD.sel.nz.dev.1se[,1])
-length(PRAD.sel.nz.dev.1se[,1])
-
-length(BRCA.sel.nz.mse.1se[,1])
-length(COAD.sel.nz.mse.1se[,1])
-length(KIRC.sel.nz.mse.1se[,1])
-length(LUAD.sel.nz.mse.1se[,1])
-length(PRAD.sel.nz.mse.1se[,1])
-
-length(BRCA.sel.nz.dev.min[,1])
-length(COAD.sel.nz.dev.min[,1])
-length(KIRC.sel.nz.dev.min[,1])
-length(LUAD.sel.nz.dev.min[,1])
-length(PRAD.sel.nz.dev.min[,1])
-
-length(BRCA.sel.nz.mse.min[,1])
-length(COAD.sel.nz.mse.min[,1])
-length(KIRC.sel.nz.mse.min[,1])
-length(LUAD.sel.nz.mse.min[,1])
-length(PRAD.sel.nz.mse.min[,1])
 

@@ -46,16 +46,12 @@ simulate_data <- function(n, p, sparsity, SNR = 3, beta_scale = 5) {
 ##############
 
 # Number of datasets simulated 
-nr.ds <- 100
+nr.ds <- 10
 
 lambda.names <- c("L.small", "L.1se", "L.big")
 stab.cut.off <- c(0.5, 0.7, 0.9)
 
 # Create a data frame to gather all the results 
-# # (nrow = nr lambda * nr cutoffs * nr data simulations)
-# sel.acc <- as.data.frame(matrix(nrow = length(lambda.names)*length(stab.cut.off)*nr.ds, 
-#                                 ncol = 4))
-# (nrow = nr lambda * nr cutoffs * nr data simulations)
 sel.acc <- as.data.frame(matrix(ncol = 4))
 colnames(sel.acc) <- c("sensitivity", "speceficity", "lambda", "stab.cut.off")
 
@@ -107,7 +103,7 @@ for (jj in 1:nr.ds) {
   #* Boot strap ----------------------------------------------------------------
   
   # Number of repeated bootstraps (M=100 is rather time consuming)
-  M = 100
+  M = 50
   
   # Factor that lambda.1se is changed by [Look into an appropriate number!!!]
   L.fac <- 5
@@ -126,15 +122,16 @@ for (jj in 1:nr.ds) {
                          type.measure = "mse",
                          alpha = 1)
     
+    # Collect the lambdas in a vector
+    lambdas <- c(cv.boot$lambda.1se / L.fac,
+                 cv.boot$lambda.1se,
+                 cv.boot$lambda.1se * L.fac)
+    
     # Extract the feature coefficients for different lambda
     pred.coef <- predict(
       cv.boot,
       newx = X.boot,
-      s = c(
-        cv.boot$lambda.1se / L.fac,
-        cv.boot$lambda.1se,
-        cv.boot$lambda.1se * L.fac
-      ),
+      s = lambdas,
       type = "coef"
     )
     colnames(pred.coef) <- c("L.small", "L.1se", "L.big")
@@ -155,14 +152,14 @@ for (jj in 1:nr.ds) {
     }
   }
   
+  # The tree lambdas
+  lambdas
+  
   # Total counts of feature selection
   sel.freq
   
   # Feature selection stability across bootstrap samples
   sel.stab <- sel.freq / M
-  
-  # How many and which features are left after cutoff at different selection
-  # stabilites 70, 80, 90%?
   
   # Remove intercept from sel.stab and reset the row indexes
   sel.stab.feat <- sel.stab[-1, ]
@@ -203,7 +200,7 @@ for (jj in 1:nr.ds) {
       # Insert into sel.acc matrix
       newrow <- c(round(sens, digits = 3), 
                   round(spec, digits = 3), 
-                  lambda.names[ii],  
+                  lambdas[ii], #lambda.names[ii]
                   stab.cut.off[kk])
       sel.acc <- rbind(sel.acc, newrow) # Not good with rbind
       
@@ -218,9 +215,8 @@ sel.acc
 
 result <- sel.acc
 
-
 # Make the variables into factors
-result$lambda <- factor(result$lambda)
+result$lambda <- as.numeric(result$lambda)
 result$speceficity <- as.numeric(result$speceficity)
 result$sensitivity <- as.numeric(result$sensitivity)
 result$stab.cut.off<- as.numeric(result$stab.cut.off)
