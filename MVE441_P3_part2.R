@@ -1,4 +1,4 @@
-# MVE441 Project 3, Question 2, (Iris)
+# MVE441 Project 3, Question 2
 
 # This question is about selecting features with confidence. The dataset used 
 # is the gene expression dataset.
@@ -513,6 +513,9 @@ ggplot(PRAD.sel.nz.dev.1se) +
         plot.title = element_text(size = 20)) +
   scale_y_continuous(breaks = seq(0, 1.2, by = 0.2))
 
+
+beep(5)
+
 #* Same feature selected in multiple classes? ----------------------------------
 
 # Class simultaneous selection of features for all non-zero features
@@ -531,6 +534,34 @@ top.mult.feat.sel.dev.1se <- c(BRCA.sel.nz.dev.1se$name[2:6],
                                LUAD.sel.nz.dev.1se$name[2:6],
                                PRAD.sel.nz.dev.1se$name[2:6])
 top.mult.feat.sel.dev.1se[duplicated(top.mult.feat.sel.dev.1se)] 
+
+# Class simultaneous selection of features for stability cutoffs per class
+# (Don't include the intercept)
+cut.offs <- seq(from = 0, to = 1, by = 0.01)
+nr.dup.names.1se <- vector()
+
+for (i in 1:length(cut.offs)) {
+  dup.names.1se <- c(subset(BRCA.sel.nz.dev.1se$name, 
+                          (BRCA.sel.nz.dev.1se$sel.stab > cut.offs[i]) 
+                           & (BRCA.sel.nz.dev.1se$name != "(Intercept)")),
+                   subset(COAD.sel.nz.dev.1se$name, 
+                          (COAD.sel.nz.dev.1se$sel.stab > cut.offs[i]) 
+                          & (COAD.sel.nz.dev.1se$name != "(Intercept)")),
+                   subset(KIRC.sel.nz.dev.1se$name, 
+                          (KIRC.sel.nz.dev.1se$sel.stab > cut.offs[i]) 
+                          & (KIRC.sel.nz.dev.1se$name != "(Intercept)")),
+                   subset(LUAD.sel.nz.dev.1se$name, 
+                          (LUAD.sel.nz.dev.1se$sel.stab > cut.offs[i]) 
+                          & (LUAD.sel.nz.dev.1se$name != "(Intercept)")),
+                   subset(PRAD.sel.nz.dev.1se$name, 
+                          (PRAD.sel.nz.dev.1se$sel.stab > cut.offs[i]) 
+                          & (PRAD.sel.nz.dev.1se$name != "(Intercept)")))
+
+  nr.dup.names.1se[i] <- length(dup.names.1se[duplicated(dup.names.1se)])
+}
+
+nr.dup.names.1se
+plot(nr.dup.names.1se)
 
 
 # Task 3 Deviance measure and lambda.min --------------------------------------
