@@ -46,7 +46,7 @@ simulate_data <- function(n, p, sparsity, SNR = 3, beta_scale = 5) {
 ##############
 
 # Number of datasets simulated 
-nr.ds <- 10
+nr.ds <- 20
 
 lambda.names <- c("L.small", "L.1se", "L.big")
 stab.cut.off <- c(0.5, 0.7, 0.9)
@@ -63,7 +63,7 @@ for (jj in 1:nr.ds) {
   n <- 750
   
   # Number of features (columns)
-  p <- 500
+  p <- 1000
   
   # The sparsity of true features
   sparsity <- 0.8
@@ -103,7 +103,7 @@ for (jj in 1:nr.ds) {
   #* Boot strap ----------------------------------------------------------------
   
   # Number of repeated bootstraps (M=100 is rather time consuming)
-  M = 50
+  M = 100
   
   # Factor that lambda.1se is changed by [Look into an appropriate number!!!]
   L.fac <- 5
